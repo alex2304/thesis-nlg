@@ -107,9 +107,6 @@ class Vocabulary:
     def get_lemmas_containing(self, lemma: str, word_tag=None):
         return get_ngrams_containing(self._lemmas, lemma)
 
-    def get_lu_containing(self, lu: str):
-        return get_ngrams_containing(self._lexical_units, lu)
-
     def get_ttokens_containing(self, token, tag, lemma):
         lemmas_tokens_ngram = get_ngrams_containing(self._lemmas_tokens, lemma)
 

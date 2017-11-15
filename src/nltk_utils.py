@@ -56,11 +56,13 @@ class Lemmatizer(WordNetLemmatizer):
 
 # TreebankWordTokenizer
 class Tokenizer(RegexpTokenizer):
+    _regexp = '\w+|\S|[!?.]+|\'[dst]'
+
     def span_tokenize(self, s):
         raise NotImplementedError()
 
     def __init__(self):
-        super().__init__('\w+|\S')
+        super().__init__(self._regexp)
 
     def tokenize(self, text):
         return super().tokenize(text)

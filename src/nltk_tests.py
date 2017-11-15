@@ -4,7 +4,7 @@ from nltk import pos_tag_sents, SnowballStemmer, PorterStemmer, LancasterStemmer
 from nltk.parse.stanford import StanfordParser
 from nltk.tokenize import WordPunctTokenizer, TreebankWordTokenizer, PunktSentenceTokenizer
 
-from src.nltk_utils import penn_to_wn
+from src.nltk_utils import penn_to_wn, Tokenizer
 
 
 def polyglot_download(module_id: str):
@@ -120,7 +120,7 @@ def test_parser():
 
 
 def test_tokenizer():
-    tokenizer = RegexpTokenizer('\w+|\S')
+    tokenizer = Tokenizer()
     # tokenizer = TreebankWordTokenizer()
 
     while True:
