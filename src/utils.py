@@ -1,5 +1,6 @@
 import os
 import pickle
+import traceback
 from collections import Counter
 from typing import List, Any, Dict, Tuple
 
@@ -11,14 +12,30 @@ data_root = os.path.join(os.path.dirname(__file__), '../data/')
 voc_file_path = os.path.join(data_root, 'voc')
 
 
-def get_grams(elements: List[Any], n=1):
-    if n > 1:
-        end_range = len(elements) - n + 1
+def get_grams(elements: List[Any], n=1, indexes=None):
+    if indexes is None:
+        indexes = [list(range(len(elements)))]
 
-        return [' '.join(elements[i:i + n])
-                for i in range(end_range)]
-    else:
-        return list(elements)
+    if not elements:
+        return []
+
+    grams = []
+
+    try:
+        for phrase_indexes in indexes:
+            if n > 1:
+                end_of_range = len(phrase_indexes) - n + 1
+
+                for i in range(end_of_range):
+                    ind_begin, ind_end = phrase_indexes[i], phrase_indexes[i+n-1]
+                    grams.append(' '.join(elements[ind_begin:ind_end+1]))
+            else:
+                grams.extend(elements[phrase_indexes[0]:phrase_indexes[-1]+1])
+
+    except IndexError as e:
+        traceback.print_tb(e.__traceback__)
+
+    return grams
 
 
 def get_counted(grams: List[Any]):
@@ -31,10 +48,10 @@ def get_counted(grams: List[Any]):
     return counted
 
 
-def n_gram(elements: List[Any], n=1) -> Dict[Any, int]:
+def n_gram(elements: List[Any], n=1, indexes=None) -> Dict[Any, int]:
     assert n > 0
 
-    grams = get_grams(elements, n)
+    grams = get_grams(elements, n, indexes)
 
     return get_counted(grams)
 

@@ -5,7 +5,7 @@ from typing import List
 
 from nltk import pos_tag, TreebankWordTokenizer, SnowballStemmer, tuple2str, str2tuple, flatten
 
-from src.nltk_utils import Lemmatizer, split_tokens_tags
+from src.nltk_utils import Lemmatizer, split_tokens_tags, Parser
 from src.utils import load_corpora, n_gram
 # noinspection PyUnresolvedReferences
 from src.vocabulary import get_vocabulary, Vocabulary
@@ -17,6 +17,7 @@ class TextGenerator:
         self._lemmatizer = Lemmatizer()
         self._tokenizer = TreebankWordTokenizer()
         self._stemmer = SnowballStemmer('english', ignore_stopwords=True)
+        self._parser = Parser()
 
     @staticmethod
     def combine_sentences(collocations: List[List[str]]) -> List[str]:
@@ -37,7 +38,6 @@ class TextGenerator:
             lemma = self._lemmatizer.lemmatize(token, pos=tag)
             ttokens_of_kw = self._corp_voc.get_ttokens_containing(token, tag, lemma)
 
-            # TODO: temporary
             # rules.append(' '.join([' '.join(str2tuple(_tt)[0] for _tt in tt)
             #                        for tt in ttokens_of_kw]))
             rules.append(ttokens_of_kw)
@@ -45,6 +45,7 @@ class TextGenerator:
         sents_candidates = [' '.join(flatten(s))
                             for s in self.combine_sentences(rules)]
 
+        # TODO: temporary
         sents_candidates = [' '.join(str2tuple(tt)[0] for tt in s.split(' '))
                             for s in sents_candidates]
 
@@ -76,16 +77,17 @@ class TextGenerator:
             tokens, tags = split_tokens_tags(ttokens)
 
             n = self._corp_voc.n
+            tokens_indexes = self._parser.parse_tokens(tokens)
 
             # language model
-            lemmas_ngram = n_gram(lemmas, n=n)
+            lemmas_ngram = n_gram(lemmas, n=n, indexes=tokens_indexes)
             language_model = sum(
                 [log(self._corp_voc.prob_lemma(l))
                  for l in lemmas_ngram]
             )
 
             # morpheme model
-            tags_ngram = n_gram(tags, n=n)
+            tags_ngram = n_gram(tags, n=n, indexes=tokens_indexes)
             morpheme_model = sum(
                 [log(self._corp_voc.prob_tag(t))
                  for t in tags_ngram]

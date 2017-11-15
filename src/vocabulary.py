@@ -3,7 +3,7 @@ from typing import Dict
 import nltk
 from nltk import sent_tokenize, pos_tag_sents, flatten
 
-from src.nltk_utils import split_tokens_tags, Lemmatizer, Tokenizer, Stemmer
+from src.nltk_utils import split_tokens_tags, Lemmatizer, Tokenizer, Stemmer, Parser
 from src.utils import n_gram, load_corpora, load_voc, save_voc, get_ngrams_containing
 
 
@@ -33,6 +33,7 @@ class Vocabulary:
                        for s_tokens in sents_tokens]
 
         # lemmatize
+        # TODO: works too long and sometimes wrong: 'as' => 'a'
         self.lemmatizer = Lemmatizer()
         sents_lemmas = [[self.lemmatizer.lemmatize(tagged_token[0], pos=tagged_token[1])
                          for tagged_token in sent_tokens]
@@ -77,22 +78,24 @@ class Vocabulary:
         # TODO: filter phrases by POS-templates
         tokens, tags = split_tokens_tags(ttokens)
 
+        tokens_indexes = Parser().parse_tokens(tokens)
+
         # create tokens and tags n-gram
-        self._tokens = n_gram(tokens, n=self.n)
-        self._tags = n_gram(tags, n=self.n)
-        self._tagged_tokens = n_gram(ttokens, n=self.n)
+        self._tokens = n_gram(tokens, n=self.n, indexes=tokens_indexes)
+        self._tags = n_gram(tags, n=self.n, indexes=tokens_indexes)
+        self._tagged_tokens = n_gram(ttokens, n=self.n, indexes=tokens_indexes)
 
         # create lemmas n-gram
-        self._lemmas = n_gram(lemmas, n=self.n)
+        self._lemmas = n_gram(lemmas, n=self.n, indexes=tokens_indexes)
 
         # create lemmas and tokens
         self._lemmas_tokens = self.spec_n_gram(self._tagged_tokens, self._lemmas)
 
         # create stems unigram
-        self._stems = n_gram(stems, n=1)
+        self._stems = n_gram(stems, n=1, indexes=tokens_indexes)
 
         # create lexical units unigram
-        self._lexical_units = n_gram(lexical_units, n=1)
+        # self._lexical_units = n_gram(lexical_units, n=1)
 
     ######################################################################
     # Getting elements containing text
@@ -144,4 +147,4 @@ def get_vocabulary(corpora, reload_corpora=False, n=1, test=False) -> Vocabulary
 
 
 if __name__ == '__main__':
-    vocabulary = get_vocabulary(load_corpora(), reload_corpora=True, n=3, test=True)
+    vocabulary = get_vocabulary(load_corpora(), reload_corpora=True, n=3, test=False)

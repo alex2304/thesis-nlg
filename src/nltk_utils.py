@@ -1,12 +1,10 @@
 from os import environ
+from os.path import join, dirname
 from typing import List, Union
 
-from nltk import str2tuple, sent_tokenize, word_tokenize, pos_tag_sents, WordNetLemmatizer, TreebankWordTokenizer, \
-    SnowballStemmer, RegexpTokenizer
+from nltk import str2tuple, sent_tokenize, word_tokenize, pos_tag_sents, WordNetLemmatizer, SnowballStemmer, \
+    RegexpTokenizer
 from nltk.corpus import wordnet as wn, stopwords
-
-from os.path import join, dirname
-
 from nltk.corpus.reader import NOUN
 from nltk.parse.stanford import StanfordParser
 from tqdm import tqdm
@@ -77,6 +75,29 @@ class Stemmer(SnowballStemmer):
 
     def stem(self, token):
         return super().stem(token)
+
+
+class Parser:
+    _delimiters = [',', ':', ';', '(', ')', '"', '\'', '.', '?', '!', '-']
+    _paired_delimiters = [('(', ')'), ('\'', '\''), ('"', '"')]
+
+    def parse_tokens(self, tokens):
+        indexes = []
+        last_index = 0
+
+        for i, t in enumerate(tokens):
+            if t in self._delimiters:
+                if last_index < i:
+                    indexes.append(list(range(last_index, i)))
+                last_index = i + 1
+
+        if last_index < len(tokens):
+            indexes.append(list(range(last_index, len(tokens))))
+
+        return indexes
+
+    def parse_sents_tokens(self, sents_tokens):
+        return [self.parse_tokens(s) for s in sents_tokens]
 
 
 def split_tokens_tags(tagged_tokens: List[str]):
