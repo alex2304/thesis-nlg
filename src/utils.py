@@ -12,7 +12,25 @@ data_root = os.path.join(os.path.dirname(__file__), '../data/')
 voc_file_path = os.path.join(data_root, 'voc')
 
 
-def get_grams(elements: List[Any], n=1, indexes=None):
+def n_grams(elements: List[Any], n=1, indexes=None) -> List[Tuple[Any]]:
+    """
+    Examples of input/output:
+        [0, 1, 2], n=1 --> [(0,), (1,), (2,)]
+        [0, 1, 2, 3, 4], n=2 --> [(0, 1), (1, 2), (2, 3), (3, 4)]
+
+    :param elements: list of any elements
+    :param n: n-gram size
+    :param indexes: list of tuples, where each tuple contains indexes of elements; n-grams will be created within tuples
+
+    Example of indexes list:
+        [(0, 1), (2, 3, 4), (5), ...]
+        [(0, 1, ..., n-1)] (by default)
+
+    :return: [(ngram_1), (ngram_2), ...]
+    """
+    # Example of indexes values:
+    # [(0, 1), (2, 3, 4), (5), ...]
+    # [(0, 1, ..., n-1)] - by default
     if indexes is None:
         indexes = [list(range(len(elements)))]
 
@@ -28,17 +46,19 @@ def get_grams(elements: List[Any], n=1, indexes=None):
 
                 for i in range(end_of_range):
                     ind_begin, ind_end = phrase_indexes[i], phrase_indexes[i+n-1]
-                    grams.append(' '.join(elements[ind_begin:ind_end+1]))
+                    grams.append(tuple(elements[ind_begin:ind_end+1]))
             else:
-                grams.extend(elements[phrase_indexes[0]:phrase_indexes[-1]+1])
+                grams.extend((e,)
+                             for e in elements[phrase_indexes[0]:phrase_indexes[-1]+1])
 
-    except IndexError as e:
+    except Exception as e:
         traceback.print_tb(e.__traceback__)
 
-    return grams
+    for g in grams:
+        yield g
 
 
-def get_counted(grams: List[Any]):
+def get_counted(grams: List[Tuple]):
     counted = Counter(grams)
     total_count = sum(counted.values())
 
@@ -48,10 +68,10 @@ def get_counted(grams: List[Any]):
     return counted
 
 
-def n_gram(elements: List[Any], n=1, indexes=None) -> Dict[Any, int]:
+def n_gram_model(elements: List[Any], n=1, indexes=None) -> Dict[Any, int]:
     assert n > 0
 
-    grams = get_grams(elements, n, indexes)
+    grams = list(n_grams(elements, n, indexes))
 
     return get_counted(grams)
 

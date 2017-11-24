@@ -1,10 +1,14 @@
+from os import environ
+from os.path import join, dirname
+
 import nltk
 from nltk import pos_tag_sents, SnowballStemmer, PorterStemmer, LancasterStemmer, WordNetLemmatizer, sent_tokenize, \
-    word_tokenize, RegexpTokenizer
+    word_tokenize, RecursiveDescentParser, pos_tag, str2tuple, flatten, tuple2str
 from nltk.parse.stanford import StanfordParser
 from nltk.tokenize import WordPunctTokenizer, TreebankWordTokenizer, PunktSentenceTokenizer
 
-from src.nltk_utils import penn_to_wn, Tokenizer
+from src.nltk_utils import penn_to_wn, Tokenizer, create_grammar, Stemmer, Lemmatizer
+from src.utils import load_corpora
 
 
 def polyglot_download(module_id: str):
@@ -79,8 +83,6 @@ def test_all():
 
 
 def test_parser():
-    from os.path import join, dirname
-    from os import environ
     environ['JAVA_HOME'] = 'C:\Program Files\Java\jdk1.8.0_91'
 
     _path = join(dirname(__file__), './standford_parser')
@@ -126,6 +128,54 @@ def test_tokenizer():
     while True:
         print(tokenizer.tokenize(input('> ')))
 
+
+def test_pos():
+    tokenizer = Tokenizer()
+
+    while True:
+        print(pos_tag(tokenizer.tokenize(input('> '))))
+
+
+def test_cfg():
+    sents = 10
+    t = Tokenizer()
+    l = Lemmatizer()
+    s = Stemmer()
+
+    text = load_corpora().lower()
+
+    ttokens = [[tuple2str(tt) for tt in s_tts]
+               for s_tts in pos_tag_sents(t.tokenize_sents(sent_tokenize(text)[:sents]))]
+
+    ttokens = [str2tuple(tt) for tt in flatten(ttokens)]
+
+    g = create_grammar(ttokens)
+    p = RecursiveDescentParser(g)
+
+    while True:
+        try:
+            tokens = t.tokenize(input('> ').lower())
+            ttokens = pos_tag(tokens)
+
+            stems = [s.stem(t) for t in tokens]
+            lemmas = [l.lemmatize(token, tag) for token, tag in ttokens]
+
+            terms = [tag for token, tag in ttokens]
+
+            print(terms)
+            # p.trace(2)
+
+            for tree in p.parse(terms):
+                tree.draw()
+                break
+            else:
+                print('no trees')
+        except ValueError as e:
+            print(e)
+
+
 if __name__ == '__main__':
     # test_parser()
-    test_tokenizer()
+    # test_tokenizer()
+    test_cfg()
+    # test_pos()

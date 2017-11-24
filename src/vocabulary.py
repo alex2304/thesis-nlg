@@ -1,10 +1,28 @@
-from typing import Dict
+from math import log
+from typing import Tuple, List
 
-import nltk
-from nltk import sent_tokenize, pos_tag_sents, flatten
+from nltk import sent_tokenize, flatten, defaultdict, pos_tag
 
-from src.nltk_utils import split_tokens_tags, Lemmatizer, Tokenizer, Stemmer, Parser
-from src.utils import n_gram, load_corpora, load_voc, save_voc, get_ngrams_containing
+from src.grammars import parse_phrases
+from src.nltk_utils import Lemmatizer, Tokenizer, Stemmer, Parser
+from src.utils import n_grams, load_corpora, load_voc, save_voc, n_gram_model
+
+
+class WordInfo:
+    def __init__(self, token, tag, stem, lemma):
+        self.stem = stem
+        self.lemma = lemma
+        self.tag = tag
+        self.token = token
+
+    def ttoken(self):
+        return self.token, self.tag
+
+    def __eq__(self, other):
+        return other.token == self.token
+
+    def __hash__(self):
+        return hash(self.token)
 
 
 class Vocabulary:
@@ -14,123 +32,200 @@ class Vocabulary:
         self.n = n
         self.test = test
 
-        # segment sentences
-        self.sents = sent_tokenize(corpora)
-        if test:
-            self.sents = self.sents[:5]
-
-        # tokenize
-        sents_tokens = Tokenizer().tokenize_sents(self.sents)
-
-        # tokens pos tagging
-        self.sents_tokens_tagged = pos_tag_sents(sents_tokens)
-        tagged_tokens = [[nltk.tuple2str(t) for t in sent_tokens]
-                         for sent_tokens in self.sents_tokens_tagged]
-
-        # stem
+        # create utils and save as members of the class
+        tokenizer = Tokenizer()
         stemmer = Stemmer()
-        sents_stems = [[stemmer.stem(token) for token in s_tokens]
-                       for s_tokens in sents_tokens]
+        lemmatizer = Lemmatizer()
+        parser = Parser()
 
-        # lemmatize
-        # TODO: works too long and sometimes wrong: 'as' => 'a'
-        self.lemmatizer = Lemmatizer()
-        sents_lemmas = [[self.lemmatizer.lemmatize(tagged_token[0], pos=tagged_token[1])
-                         for tagged_token in sent_tokens]
-                        for sent_tokens in self.sents_tokens_tagged]
+        self.tokenizer = tokenizer
+        self.stemmer = stemmer
+        self.lemmatizer = lemmatizer
+        self.parser = parser
 
-        # find lexical units
-        # sents_lu = get_lexical_units(self.sents_tokens_tagged, tagged_sents=True)
-        sents_lu = []
+        # segment sentences
+        sents = sent_tokenize(corpora)
+        if test:
+            sents = sents[:10]
 
-        self._create_voc(flatten(sents_stems), flatten(sents_lemmas),
-                         flatten(tagged_tokens), flatten(sents_lu))
+        # tokenizing and POS tagging
+        tokens = list(flatten(tokenizer.tokenize_sents(sents)))
+        ttokens = pos_tag(tokens)
 
-    def spec_n_gram(self, ngram_tokens: Dict, ngram_lemmas: Dict) -> Dict:
-        combined_ngram = dict()
-        missed_lemmas = set()
+        # stemming
+        stems = [stemmer.stem(t)
+                 for t in tokens]
 
-        for tagged_token_gram, tt_prob in ngram_tokens.items():
-            gram_tokens = [nltk.str2tuple(tt)
-                           for tt in tagged_token_gram.split(' ')]
+        # lemmatizing
+        lemmas = [lemmatizer.lemmatize(token, pos=tag)
+                  for token, tag in ttokens]
 
-            gram_lemmas = [self.lemmatizer.lemmatize(word=token, pos=tag)
-                           for token, tag in gram_tokens]
+        # create list of words with their info
+        assert len(ttokens) == len(stems) == len(lemmas)
+        words = [WordInfo(token=token, tag=tag, stem=s, lemma=l)
+                 for (token, tag), s, l in zip(ttokens, stems, lemmas)]
 
-            lemma_gram = ' '.join(gram_lemmas)
+        # create indexes
+        self._t_words = {}
+        self._tag_words = defaultdict(set)
+        self._s_words = defaultdict(set)
+        self._l_words = defaultdict(set)
 
-            lemma_gram_prob = ngram_lemmas.get(lemma_gram)
-            if lemma_gram_prob is None:
-                missed_lemmas.add(lemma_gram)
-                lemma_gram_prob = self._default_prob
+        for w in words:
+            self._t_words[w.token] = w
+            self._tag_words[w.tag].add(w)
+            self._s_words[w.stem].add(w)
+            self._l_words[w.lemma].add(w)
 
-            combined_ngram[lemma_gram] = {
-                'lemma': (lemma_gram, lemma_gram_prob),
-                'ttoken': (tagged_token_gram, tt_prob)
-            }
+        # create n-gram models
+        ordered_tokens = flatten(tokenizer.tokenize_sents(sents))
+        ordered_ttokens = pos_tag(ordered_tokens)
 
-        if missed_lemmas:
-            print('Missed lemmas: %s' % str(missed_lemmas))
+        tokens_indexes = parser.parse_tokens(ordered_tokens)
 
-        return combined_ngram
+        self.ngram_tokens_model = n_gram_model(ordered_tokens, n=n, indexes=tokens_indexes)
+        self.ngram_tags_model = n_gram_model([tag for _, tag in ordered_ttokens], n=n, indexes=tokens_indexes)
 
-    def _create_voc(self, stems, lemmas, ttokens, lexical_units):
-        # TODO: filter phrases by POS-templates
-        tokens, tags = split_tokens_tags(ttokens)
+        # parse phrasal units from tokens
+        self._s_phrases = defaultdict(set)
+        self._t_phrases = defaultdict(set)
 
-        tokens_indexes = Parser().parse_tokens(tokens)
+        for i in range(2, 5):
+            tt_ngrams = list(n_grams(ordered_ttokens, i, tokens_indexes))
 
-        # create tokens and tags n-gram
-        self._tokens = n_gram(tokens, n=self.n, indexes=tokens_indexes)
-        self._tags = n_gram(tags, n=self.n, indexes=tokens_indexes)
-        self._tagged_tokens = n_gram(ttokens, n=self.n, indexes=tokens_indexes)
+            types, phrases = parse_phrases(tt_ngrams, i)
 
-        # create lemmas n-gram
-        self._lemmas = n_gram(lemmas, n=self.n, indexes=tokens_indexes)
+            for t, p in zip(types, phrases):
+                self._s_phrases[len(p)].add(p)
+                self._t_phrases[t].add(p)
 
-        # create lemmas and tokens
-        self._lemmas_tokens = self.spec_n_gram(self._tagged_tokens, self._lemmas)
 
-        # create stems unigram
-        self._stems = n_gram(stems, n=1, indexes=tokens_indexes)
+    # def spec_n_gram(self, ngram_tokens: Dict, ngram_lemmas: Dict) -> Dict:
+    #     combined_ngram = dict()
+    #     missed_lemmas = set()
+    #
+    #     for tagged_token_gram, tt_prob in ngram_tokens.items():
+    #         gram_tokens = [nltk.str2tuple(tt)
+    #                        for tt in tagged_token_gram.split(' ')]
+    #
+    #         gram_lemmas = [self.lemmatizer.lemmatize(word=token, pos=tag)
+    #                        for token, tag in gram_tokens]
+    #
+    #         lemma_gram = ' '.join(gram_lemmas)
+    #
+    #         lemma_gram_prob = ngram_lemmas.get(lemma_gram)
+    #         if lemma_gram_prob is None:
+    #             missed_lemmas.add(lemma_gram)
+    #             lemma_gram_prob = self._default_prob
+    #
+    #         combined_ngram[lemma_gram] = {
+    #             'lemma': (lemma_gram, lemma_gram_prob),
+    #             'ttoken': (tagged_token_gram, tt_prob)
+    #         }
+    #
+    #     if missed_lemmas:
+    #         print('Missed lemmas: %s' % str(missed_lemmas))
+    #
+    #     return combined_ngram
 
-        # create lexical units unigram
-        # self._lexical_units = n_gram(lexical_units, n=1)
+    # def _create_voc(self, stems, lemmas, ttokens):
+    #     tokens, tags = split_tokens_tags(ttokens)
+    #
+    #     tokens_indexes = Parser().parse_tokens(tokens)
+    #
+    #     # create tokens and tags n-gram
+    #     self._tokens = n_gram(tokens, n=self.n, indexes=tokens_indexes)
+    #     self._tags = n_gram(tags, n=self.n, indexes=tokens_indexes)
+    #     self._tagged_tokens = n_gram(ttokens, n=self.n, indexes=tokens_indexes)
+    #
+    #     # create lemmas n-gram
+    #     self._lemmas = n_gram(lemmas, n=self.n, indexes=tokens_indexes)
+    #
+    #     # create lemmas and tokens
+    #     self._lemmas_tokens = self.spec_n_gram(self._tagged_tokens, self._lemmas)
+    #
+    #     # create stems unigram
+    #     self._stems = n_gram(stems, n=1, indexes=tokens_indexes)
 
     ######################################################################
     # Getting elements containing text
     ######################################################################
 
-    def get_tokens_containing(self, token: str, word_tag=None):
-        return get_ngrams_containing(self._tokens, token)
+    def lemma_words(self, l) -> List[WordInfo]:
+        return self._l_words.get(l) or set()
 
-    def get_lemmas_containing(self, lemma: str, word_tag=None):
-        return get_ngrams_containing(self._lemmas, lemma)
+    def get_phrases_containing(self, lemma: str, size=None):
+        # if size:
+        #     indexed_phrases =
+        #
+        # if tag.startswith('N'):
+        #     phrase_type = 'NP'
+        # elif tag.startswith('V'):
+        #     phrase_type = 'VP'
+        # elif tag in ['IN', 'TO']:
+        #     phrase_type = 'PP'
+        # elif tag in ['JJ', 'RB']:
+        #     phrase_type = 'ADJP'
+        # else:
+        #     raise NotImplementedError(tag)
 
-    def get_ttokens_containing(self, token, tag, lemma):
-        lemmas_tokens_ngram = get_ngrams_containing(self._lemmas_tokens, lemma)
+        # TODO: options which phrases to return
 
-        ttokens = []
-        for lemma, gram in lemmas_tokens_ngram:
-            lemma, lemma_prob = gram['lemma']
-            ttoken, ttoken_prob = gram['ttoken']
+        ttokens = set(w.ttoken() for w in self.lemma_words(lemma))
 
-            ttokens.append(ttoken)
+        result = defaultdict(list)
+        if ttokens:
+            for phr_type, phrases in self._t_phrases.items():
+                result[phr_type].extend([phrase
+                                         for phrase in list(phrases)
+                                         if ttokens.intersection(phrase)])
 
-        return ttokens
+        return result
 
     ######################################################################
     # Probabilities
     ######################################################################
 
-    def prob_token(self, token):
-        return self._tokens.get(token) or self._default_prob
+    def sent_model(self, log_prob=True, *ttokens) -> Tuple[float, float]:
+        """
+        Example of input:
+            ttokens = (('alice', 'NN'), ('left', 'VBD'), ('the', 'DT'), ('court', 'NN'))
+        :return: (n-gram language model, n-gram morpheme model)
+        """
+        tokens, tags = zip(*ttokens)
 
-    def prob_lemma(self, lemma):
-        return self._lemmas.get(lemma) or self._default_prob
+        # language model
+        tokens_ngrams = n_grams(tokens, n=self.n)
+        language_model = sum(
+            [log(self.ngram_tokens_model.get(t) or self._default_prob)
+             for t in tokens_ngrams]
+        )
 
-    def prob_tag(self, tag):
-        return self._tags.get(tag) or self._default_prob
+        # morpheme model
+        tags_ngrams = n_grams(tags, n=self.n)
+        morpheme_model = sum(
+            [log(self.ngram_tags_model.get(t) or self._default_prob)
+             for t in tags_ngrams]
+        )
+
+        return language_model, morpheme_model
+
+    def kw_log_prob(self, ttokens, kws) -> float:
+        """
+        Example of input:
+        :param ttokens: (('alice', 'NN'), ('left', 'VBD'), ('the', 'DT'), ('court', 'NN'))
+        :param kws: (('left', 'VBD'), ('court', 'NN'))
+        :return: (n-gram keyword-production model)
+        """
+        return 1
+        ttokens_ngrams = n_grams(ttokens, n=self.n)
+
+        kw_prod_model = sum(
+            [log(self.ngram_tags_model.get(t) or self._default_prob)
+             for t in tags_ngrams]
+        )
+
+        return kw_prod_model
 
 
 def get_vocabulary(corpora, reload_corpora=False, n=1, test=False) -> Vocabulary:
@@ -144,4 +239,4 @@ def get_vocabulary(corpora, reload_corpora=False, n=1, test=False) -> Vocabulary
 
 
 if __name__ == '__main__':
-    vocabulary = get_vocabulary(load_corpora(), reload_corpora=True, n=3, test=False)
+    vocabulary = get_vocabulary(load_corpora().lower(), reload_corpora=True, n=3, test=False)

@@ -1,11 +1,11 @@
 from os import environ
 from os.path import join, dirname
-from typing import List, Union
+from typing import List, Union, Tuple
 
 from nltk import str2tuple, sent_tokenize, word_tokenize, pos_tag_sents, WordNetLemmatizer, SnowballStemmer, \
-    RegexpTokenizer
+    RegexpTokenizer, CFG, pos_tag
 from nltk.corpus import wordnet as wn, stopwords
-from nltk.corpus.reader import NOUN
+from nltk.corpus.reader import NOUN, defaultdict
 from nltk.parse.stanford import StanfordParser
 from tqdm import tqdm
 
@@ -47,11 +47,20 @@ def penn_to_wn(tag: str):
 
 
 class Lemmatizer(WordNetLemmatizer):
+    _exceptions = {
+        'at': 'at',
+        'as': 'as'
+    }
+
     def __init__(self):
         super().__init__()
 
     def lemmatize(self, word, pos=NOUN):
-        return super().lemmatize(word, penn_to_wn(pos))
+        exc = self._exceptions.get(word)
+        if exc is not None:
+            return exc
+        else:
+            return super().lemmatize(word, penn_to_wn(pos))
 
 
 # TreebankWordTokenizer
@@ -166,8 +175,167 @@ def get_lexical_units(text_or_tagged_sents: Union[List[str], str], tagged_sents=
 
     return sents_lexical_units
 
+
+def terminals_str(terminals: List[str]) -> str:
+    return ' | '.join('"%s"' % t for t in terminals)
+
+
+def not_terminals_str(not_terminals: List[str]) -> str:
+    return ' | '.join('%s' % t for t in not_terminals)
+
+
+def create_grammar(ttokens: List[Tuple[str, str]]):
+
+    # g_template = '''
+    # S -> NP VP
+    # PP -> IN NP
+    # NP -> DT NN | DT NN PP | NNP
+    # VP -> VB NP | VB NP PP
+    # '''
+    g_template = '''
+S -> NP VP
+
+NP -> DT N 
+NP -> DT N PP
+NP -> DT DT N
+NP -> DT ADJP N
+NP -> JJ N
+NP -> DT JJ NN
+NP -> NNP
+NP -> NNP NNP
+NP -> N
+NP -> PRP
+NP -> PRPS N
+
+VP -> V
+VP -> V NP
+VP -> V NP ADVP  
+VP -> V NP PP
+VP -> TO VP
+
+PP -> IN NP | TO NP
+ADJP -> DT JJ
+ADJP -> JJ
+ADVP -> RB
+
+N -> NN | NNS
+V -> VPG | VDN
+VPG -> VB | VBP | VBZ | VBG
+VDN -> VBD | VBN
+
+NN -> "NN"
+NNS -> "NNS"
+NNP -> "NNP"
+PRP -> "PRP"
+PRPS -> "PRP$"
+
+VB -> "VB"
+VBP -> "VBP"
+VBZ -> "VBZ"
+VBG -> "VBG"
+VBD -> "VBD"
+VBN -> "VBN"
+
+RB -> "RB"
+JJ -> "JJ"
+DT -> "DT"
+IN -> "IN"
+TO -> "TO"
+    '''
+    return CFG.fromstring(g_template)
+    grammar_terminals = defaultdict(set)
+
+    # stemmer = Stemmer()
+    l = Lemmatizer()
+    subst = {
+        'PRP$': 'PRPS'
+    }
+    for tt in list(ttokens):
+        token, tag = tt
+
+        if subst.get(tag):
+            tag = subst[tag]
+
+        # terminal = stemmer.stem(token)
+        # terminal = l.lemmatize(token, tag)
+        terminal = token
+
+        if tag.startswith('NN') or tag.startswith('VB') or tag in ['IN', 'DT', 'JJ', 'PRP', 'PRPS', 'RB']:
+            grammar_terminals[tag].add(terminal)
+
+    # convert list of tokens to terminals
+    g_str = str(g_template)
+    for tag in grammar_terminals:
+        g_str += '\n%s -> %s' % (tag, terminals_str(grammar_terminals[tag]))
+
+    print(g_str)
+
+    return CFG.fromstring(g_str)
+
+
+def create_rule(tokens: List[str], s=None):
+    s = s or 'S'
+
+    ttokens = pos_tag(tokens)
+    print(ttokens)
+
+    tags = [tt[1] for tt in ttokens]
+
+    return '%s -> %s' % (s, ' '.join(tags))
+
 if __name__ == '__main__':
-    print(
-    get_lexical_units('King has been gathered the data from Alice, and then went to the bed with a telescope.',
-                      tagged_sents=False)
-    )
+    t = Tokenizer()
+    rules = []
+
+    while True:
+        try:
+            args = input('> ').split(' ')
+
+            if args[0] == '!print':
+                for r in rules:
+                    print(r)
+            else:
+                symbol = None
+                if args[0].startswith('!'):
+                    symbol = args[0][1:].upper()
+                    args = args[1:]
+
+                rule = create_rule(t.tokenize(' '.join(args)), symbol)
+                if rule not in rules:
+                    rules.append(rule)
+        except Exception as e:
+            print(e)
+
+'''
+S -> NP VP
+
+NP -> DT N 
+NP -> DT N PP
+NP -> DT DT N
+NP -> DT ADJP N
+NP -> JJ N
+NP -> DT JJ NN
+NP -> NNP
+NP -> NNP NNP
+NP -> PRP
+NP -> PRP$ N
+
+VP -> V NP
+VP -> V NP ADVP 
+VP -> VP PP 
+
+PP -> IN NP | TO NP
+ADJP -> DT JJ
+ADJP -> JJ
+ADVP -> RB
+
+N -> NN | NNS
+V -> VG | VDN
+VPG -> VB | VBP | VBZ | VBG
+VDN -> VBD | VBN
+
+DT -> "a" | "the" | "this" | "some" | "that" | "another" | "no" | "all"
+IN -> "at" | "after" | "as" | "for" | "about" | "by" | "so" | "out" | "into" | "under" | "worth" | "without" | "over" | "upon" | "across" | "with" | "of" | "before" | "whether" | "on" | "in" | "that" | "like"
+TO -> 'to'
+
+'''
