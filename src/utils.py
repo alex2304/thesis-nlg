@@ -77,16 +77,14 @@ def n_grams_model(elements: List[Any], n=1, indexes=None, pad_left=True) -> Dict
     return counted
 
 
-def get_ngrams_containing(ngrams: Dict, text: str) -> List[Tuple[str, Any]]:
-    text = str(text).lower()
-    matches = []
+def get_ngrams_containing(ngrams: List[Tuple], gram: str) -> List[Tuple]:
+    ngrams_containing = []
 
-    for e, p in ngrams.items():
-        words = e.lower().split(' ')
-        if text in words:
-            matches.append((e, p))
+    for ngram in ngrams:
+        if gram in ngram:
+            ngrams_containing.append(ngram)
 
-    return matches
+    return ngrams_containing
 
 
 def load_corpora(root_folder=corpora_root_folder, files_delimiter=' '):

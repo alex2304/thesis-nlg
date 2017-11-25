@@ -1,12 +1,11 @@
 from math import log
 from typing import Tuple, List
 
-import nltk
 from nltk import sent_tokenize, flatten, defaultdict, pos_tag
 
 from src.grammars import parse_phrases
 from src.nltk_utils import Lemmatizer, Tokenizer, Stemmer, Parser
-from src.utils import n_grams, load_corpora, load_voc, save_voc, n_grams_model
+from src.utils import n_grams, load_corpora, load_voc, save_voc, n_grams_model, get_ngrams_containing
 
 
 class WordInfo:
@@ -100,6 +99,7 @@ class Vocabulary:
                 self._s_phrases[len(p)].add(p)
                 self._t_phrases[t].add(p)
 
+        # TODO: save models to files
 
     # def spec_n_gram(self, ngram_tokens: Dict, ngram_lemmas: Dict) -> Dict:
     #     combined_ngram = dict()
@@ -195,6 +195,7 @@ class Vocabulary:
         """
         tokens, tags = zip(*ttokens)
 
+        # TODO: smoothing (penalize short sentences)
         # P('There was heavy rain') ~ P('There')P('was'|'There')P('heavy'|'was')P('rain'|'heavy')
 
         # language model
@@ -213,19 +214,24 @@ class Vocabulary:
 
         return language_model, morpheme_model
 
-    def kw_log_prob(self, ttokens, kws) -> float:
+    def kw_log_prob(self, ttokens: List[Tuple], kws: List[Tuple]) -> float:
         """
         Example of input:
         :param ttokens: (('alice', 'NN'), ('left', 'VBD'), ('the', 'DT'), ('court', 'NN'))
         :param kws: (('left', 'VBD'), ('court', 'NN'))
         :return: (n-gram keyword-production model)
         """
-        return 1
-        ttokens_ngrams = n_grams(ttokens, n=self.n)
+        tokens, tags = zip(*ttokens)
+
+        tokens_ngrams = n_grams(tokens, n=self.n)
+
+        ngrams_with_kws = set()
+        for kw in kws:
+            ngrams_with_kws.update(get_ngrams_containing(tokens_ngrams, kw[0]))
 
         kw_prod_model = sum(
-            [log(self.ngram_tags_model.get(t) or self._default_prob)
-             for t in tags_ngrams]
+            [log(self.ngram_tokens_model.get(ngram) or self._default_prob)
+             for ngram in ngrams_with_kws]
         )
 
         return kw_prod_model

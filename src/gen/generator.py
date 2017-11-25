@@ -3,7 +3,6 @@ from operator import itemgetter
 from typing import List
 
 from nltk import pos_tag, pprint
-from tqdm import tqdm
 
 from src.utils import load_corpora
 # noinspection PyUnresolvedReferences
@@ -59,6 +58,7 @@ class TextGenerator:
 
     def rank_sents(self, sents, kws):
         sents_probs = []
+        correct_sents = []
 
         for s in sents:
             # kws = ['rush', 'court']
@@ -75,8 +75,12 @@ class TextGenerator:
 
             language_model, morpheme_model = self.voc.sent_model(*sent_ttokens)
             kw_prod_model = self.voc.kw_log_prob(sent_ttokens, kws)
+            model_sum = sum([language_model, morpheme_model, kw_prod_model])
 
-            sents_probs.append(sum([language_model, morpheme_model, kw_prod_model]))
+            print('%.2f' % model_sum, '%.2f' % language_model, '%.2f' % morpheme_model, '%.2f' % kw_prod_model, s)
+
+            sents_probs.append(model_sum)
+            correct_sents.append(s)
 
         return sorted(zip(sents, sents_probs), key=itemgetter(1), reverse=True)
 
@@ -87,7 +91,7 @@ def main():
     while True:
         keywords = input('keywords: ').split(' ')
 
-        print(gen.generate(keywords, limit=3))
+        pprint(gen.generate(keywords, limit=10))
 
 if __name__ == '__main__':
     main()

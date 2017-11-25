@@ -280,6 +280,7 @@ def parse_phrases(tt_ngrams, n) -> Tuple[List, List[List[Tuple]]]:
         tags = [tag for _, tag in tt_gram]
 
         for p, p_type in g_parsers:
+            # TODO: check if tags have been already observed
             if preparse_tags(p_type, tags):
                 try:
                     trees = list(p.parse(tags))
