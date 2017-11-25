@@ -1,16 +1,8 @@
-import os
-import pickle
 import traceback
 from collections import Counter
 from typing import List, Any, Dict, Tuple
 
 import nltk
-from nltk import str2tuple
-
-corpora_root_folder = os.path.join(os.path.dirname(__file__), '../corpora/')
-data_root = os.path.join(os.path.dirname(__file__), '../data/')
-
-voc_file_path = os.path.join(data_root, 'voc')
 
 
 def n_grams(elements: List[Any], n=1, indexes=None, pad_left=True) -> List[Tuple[Any]]:
@@ -85,31 +77,3 @@ def get_ngrams_containing(ngrams: List[Tuple], gram: str) -> List[Tuple]:
             ngrams_containing.append(ngram)
 
     return ngrams_containing
-
-
-def load_corpora(root_folder=corpora_root_folder, files_delimiter=' '):
-    corpora = []
-
-    for f_name in os.listdir(root_folder):
-        with open(os.path.join(root_folder, f_name), mode='r', encoding='utf-8') as f:
-            corpora.append(f.read())
-
-    return files_delimiter.join(corpora)
-
-
-def save_voc(voc, overwrite=False):
-    if os.path.exists(voc_file_path) and not overwrite:
-        return False
-
-    with open(os.path.join(data_root, 'voc'), mode='wb') as f:
-        pickle.dump(voc, f)
-
-    return True
-
-
-def load_voc():
-    if not os.path.exists(voc_file_path):
-        return None
-
-    with open(voc_file_path, mode='rb') as f:
-        return pickle.load(f)

@@ -4,7 +4,7 @@ from typing import List
 
 from nltk import pos_tag, pprint
 
-from src.utils import load_corpora
+from src.io import load_corpora
 # noinspection PyUnresolvedReferences
 from src.vocabulary import get_vocabulary, Vocabulary, WordInfo
 
@@ -77,12 +77,12 @@ class TextGenerator:
             kw_prod_model = self.voc.kw_log_prob(sent_ttokens, kws)
             model_sum = sum([language_model, morpheme_model, kw_prod_model])
 
-            print('%.2f' % model_sum, '%.2f' % language_model, '%.2f' % morpheme_model, '%.2f' % kw_prod_model, s)
+            # print('%.2f' % model_sum, '%.2f' % language_model, '%.2f' % morpheme_model, '%.2f' % kw_prod_model, s)
 
             sents_probs.append(model_sum)
             correct_sents.append(s)
 
-        return sorted(zip(sents, sents_probs), key=itemgetter(1), reverse=True)
+        return sorted(zip(correct_sents, sents_probs), key=itemgetter(1), reverse=True)
 
 
 def main():

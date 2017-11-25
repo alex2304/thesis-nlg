@@ -4,8 +4,9 @@ from typing import Tuple, List
 from nltk import sent_tokenize, flatten, defaultdict, pos_tag
 
 from src.grammars import parse_phrases
+from src.io import load_corpora, load_voc, save_voc, load_phrases, save_phrases
 from src.nltk_utils import Lemmatizer, Tokenizer, Stemmer, Parser
-from src.utils import n_grams, load_corpora, load_voc, save_voc, n_grams_model, get_ngrams_containing
+from src.utils import n_grams, n_grams_model, get_ngrams_containing
 
 
 class WordInfo:
@@ -28,7 +29,7 @@ class WordInfo:
 class Vocabulary:
     _default_prob = 1e-07
 
-    def __init__(self, corpora: str, n=1, test=False):
+    def __init__(self, corpora: str, n=1, test=False, t_phrases=None):
         self.n = n
         self.test = test
 
@@ -90,6 +91,16 @@ class Vocabulary:
         self._s_phrases = defaultdict(set)
         self._t_phrases = defaultdict(set)
 
+        if t_phrases is not None:
+            self._t_phrases = t_phrases
+
+            for t, phrases in t_phrases.items():
+                for p in phrases:
+                    self._s_phrases[len(p)].add(p)
+
+            print('phrases loaded from file')
+            return
+
         for i in range(2, 5):
             tt_ngrams = list(n_grams(ordered_ttokens, i, tokens_indexes, pad_left=False))
 
@@ -98,8 +109,6 @@ class Vocabulary:
             for t, p in zip(types, phrases):
                 self._s_phrases[len(p)].add(p)
                 self._t_phrases[t].add(p)
-
-        # TODO: save models to files
 
     # def spec_n_gram(self, ngram_tokens: Dict, ngram_lemmas: Dict) -> Dict:
     #     combined_ngram = dict()
@@ -237,15 +246,24 @@ class Vocabulary:
         return kw_prod_model
 
 
-def get_vocabulary(corpora, reload_corpora=False, n=1, test=False) -> Vocabulary:
+def get_vocabulary(corpora, reload_corpora=False, reload_phrases=False, n=1, test=False) -> Vocabulary:
     voc = load_voc()
 
     if not voc or reload_corpora or (voc.n != n or voc.test != test):
-        voc = Vocabulary(corpora, n=n, test=test)
+        if not reload_phrases:
+            phrases = load_phrases()
+        else:
+            phrases = None
+
+        voc = Vocabulary(corpora, n=n, test=test, t_phrases=phrases)
         save_voc(voc, overwrite=True)
+
+        if reload_phrases:
+            save_phrases(voc._t_phrases)
 
     return voc
 
 
 if __name__ == '__main__':
-    vocabulary = get_vocabulary(load_corpora().lower(), reload_corpora=True, n=3, test=True)
+    vocabulary = get_vocabulary(load_corpora().lower(), reload_corpora=True, n=2, reload_phrases=False, test=False)
+    # save_phrases(vocabulary._t_phrases, overwrite=True)
