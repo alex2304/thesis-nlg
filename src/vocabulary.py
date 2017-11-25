@@ -1,11 +1,12 @@
 from math import log
 from typing import Tuple, List
 
+import nltk
 from nltk import sent_tokenize, flatten, defaultdict, pos_tag
 
 from src.grammars import parse_phrases
 from src.nltk_utils import Lemmatizer, Tokenizer, Stemmer, Parser
-from src.utils import n_grams, load_corpora, load_voc, save_voc, n_gram_model
+from src.utils import n_grams, load_corpora, load_voc, save_voc, n_grams_model
 
 
 class WordInfo:
@@ -83,15 +84,15 @@ class Vocabulary:
 
         tokens_indexes = parser.parse_tokens(ordered_tokens)
 
-        self.ngram_tokens_model = n_gram_model(ordered_tokens, n=n, indexes=tokens_indexes)
-        self.ngram_tags_model = n_gram_model([tag for _, tag in ordered_ttokens], n=n, indexes=tokens_indexes)
+        self.ngram_tokens_model = n_grams_model(ordered_tokens, n=n, indexes=tokens_indexes)
+        self.ngram_tags_model = n_grams_model([tag for _, tag in ordered_ttokens], n=n, indexes=tokens_indexes)
 
         # parse phrasal units from tokens
         self._s_phrases = defaultdict(set)
         self._t_phrases = defaultdict(set)
 
         for i in range(2, 5):
-            tt_ngrams = list(n_grams(ordered_ttokens, i, tokens_indexes))
+            tt_ngrams = list(n_grams(ordered_ttokens, i, tokens_indexes, pad_left=False))
 
             types, phrases = parse_phrases(tt_ngrams, i)
 
@@ -194,6 +195,8 @@ class Vocabulary:
         """
         tokens, tags = zip(*ttokens)
 
+        # P('There was heavy rain') ~ P('There')P('was'|'There')P('heavy'|'was')P('rain'|'heavy')
+
         # language model
         tokens_ngrams = n_grams(tokens, n=self.n)
         language_model = sum(
@@ -239,4 +242,4 @@ def get_vocabulary(corpora, reload_corpora=False, n=1, test=False) -> Vocabulary
 
 
 if __name__ == '__main__':
-    vocabulary = get_vocabulary(load_corpora().lower(), reload_corpora=True, n=3, test=False)
+    vocabulary = get_vocabulary(load_corpora().lower(), reload_corpora=True, n=3, test=True)
