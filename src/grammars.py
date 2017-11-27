@@ -29,7 +29,7 @@ ADVP* (RB):
 :keyword_i:
 1) RB => get ADVPs
 2) DT, JJ => get ADJPs
-3) 
+                  
 '''
 s_g = '''
 S -> NP VP

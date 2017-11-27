@@ -232,6 +232,7 @@ class Vocabulary:
         """
         tokens, tags = zip(*ttokens)
 
+        # keywords-production model
         tokens_ngrams = n_grams(tokens, n=self.n)
 
         ngrams_with_kws = set()
