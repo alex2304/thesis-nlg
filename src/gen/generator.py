@@ -2,7 +2,7 @@ from itertools import product
 from operator import itemgetter
 from typing import List
 
-from nltk import pos_tag, pprint
+from nltk import pos_tag
 
 from src.io import load_corpora
 # noinspection PyUnresolvedReferences
@@ -50,7 +50,7 @@ class TextGenerator:
             vps.update(phrases.get('VP', []))
 
         sents_candidates = self.combine_elements(nps, vps)
-        print('%d sentences candidates' % len(sents_candidates))
+        print('%d sentences candidates\n' % len(sents_candidates))
 
         ranked_sents = self.rank_sents(sents_candidates, ttokens)
 
@@ -85,13 +85,27 @@ class TextGenerator:
         return sorted(zip(correct_sents, sents_probs), key=itemgetter(1), reverse=True)
 
 
+def pprint_sents(sents, show_details=False):
+    print('%d ranked sentences:' % len(sents))
+
+    for s in sents:
+        if show_details:
+            print(s)
+        else:
+            sent_parts = s[0]
+            s_text = ' '.join(tt[0] for p in sent_parts for tt in p).capitalize() + '.'
+
+            print(s_text)
+
+
 def main():
     gen = TextGenerator(corpora=load_corpora().lower(), n=3, test=False)
 
     while True:
-        keywords = input('keywords: ').split(' ')
+        keywords = input('keywords: ').lower().split(' ')
 
-        pprint(gen.generate(keywords, limit=10))
+        pprint_sents(gen.generate(keywords, limit=5))
+        print()
 
 if __name__ == '__main__':
     main()
