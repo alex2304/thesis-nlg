@@ -1,6 +1,6 @@
 **/__pycache__
 .idea
 .ipynb_checkpoints
-src/standford_parser/*
 cache/*
 backup/*
+src/tests/standford_parser/*

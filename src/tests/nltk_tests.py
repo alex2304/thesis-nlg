@@ -212,5 +212,5 @@ if __name__ == '__main__':
     # test_tokenizer()
     # test_cfg()
     # test_pos()
-    test_kneser_ney()
-
+    # test_kneser_ney()
+    test_parser()
