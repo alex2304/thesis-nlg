@@ -3,10 +3,10 @@ import os
 import pickle
 
 corpora_root_folder = os.path.join(os.path.dirname(__file__), '../corpora/')
-data_root = os.path.join(os.path.dirname(__file__), '../data/')
+cache_root = os.path.join(os.path.dirname(__file__), '../cache/')
 
-voc_file_path = os.path.join(data_root, 'voc')
-phrases_file_path = os.path.join(data_root, 'phrases')
+voc_file_path = os.path.join(cache_root, 'voc')
+phrases_file_path = os.path.join(cache_root, 'phrases')
 
 
 class MultiDimensionalArrayEncoder(json.JSONEncoder):
@@ -81,6 +81,7 @@ def load_phrases():
         result = pickle.load(f)
 
         return result
+
 
 if __name__ == '__main__':
     enc = MultiDimensionalArrayEncoder()

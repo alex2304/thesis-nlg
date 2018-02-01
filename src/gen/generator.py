@@ -2,15 +2,27 @@ from itertools import product
 from operator import itemgetter
 from typing import List, Tuple
 
-from nltk import pos_tag
+from nltk import pos_tag, pprint
 
 from src.io import load_corpora
 # noinspection PyUnresolvedReferences
 from src.vocabulary import get_vocabulary, Vocabulary, WordInfo
 
 
+def kws_with_tag(ttokens, tag) -> List[Tuple]:
+    _res = set()
+
+    for tt in ttokens:
+        _token, _tag = tt
+
+        if _tag.startswith(tag):
+            _res.add(tt)
+
+    return list(_res)
+
+
 class TextGenerator:
-    def __init__(self, corpora: str, n=1, test=False):
+    def __init__(self, corpora: str = None, n=1, test=False):
         voc = get_vocabulary(corpora, n=n, test=test)
         self.voc = voc
 
@@ -39,30 +51,23 @@ class TextGenerator:
         kws_phrases = [self.voc.get_phrases_containing(l)
                        for l in lemmas]
 
-        # pprint(kws_phrases)
+        pprint(kws_phrases)
 
-        def kws_with_tag(tag) -> List[Tuple]:
-            _res = set()
-            for tt in ttokens:
-                _token, _tag = tt
-                if _tag.startswith(tag):
-                    _res.add(tt)
-            return list(_res)
-
-        # TODO: create nps and vps
+        # TODO: create more different nps and vps
         nps, vps = set(), set()
-        for tt, phrases in zip(ttokens, kws_phrases):
+
+        for tt, token_phrases in zip(ttokens, kws_phrases):
             token, tag = tt
 
             if tag.startswith('N') or tag in ['JJ', 'PRP', 'PRP$', 'IN', 'TO', 'DT']:
-                np_phrases = phrases.get('NP', [])
+                np_phrases = token_phrases.get('NP', [])
 
                 if np_phrases:
                     nps.update(np_phrases)
 
-                    advps, pps = kws_with_tag('ADVP'), kws_with_tag('PP')
+                    advps, pps = kws_with_tag(ttokens, 'ADVP'), kws_with_tag(ttokens, 'PP')
 
-                    for vb_tt in kws_with_tag('V'):
+                    for vb_tt in kws_with_tag(ttokens, 'V'):
                         vps.update([(vb_tt,) + p for p in np_phrases])
 
                         if advps:
@@ -72,22 +77,25 @@ class TextGenerator:
                             vps.update([(vb_tt,) + p + (pp_tt,) for p in np_phrases for pp_tt in pps])
 
             if tag.startswith('V') or tag.startswith('N') or tag in ['JJ', 'PRP', 'PRP$', 'IN', 'TO', 'DT', 'RB']:
-                vp_phrases = phrases.get('VP', [])
+                vp_phrases = token_phrases.get('VP', [])
 
                 if vp_phrases:
-                    vps.update(phrases.get('VP', []))
+                    vps.update(token_phrases.get('VP', []))
 
-                    for to_tt in kws_with_tag('TO'):
+                    for to_tt in kws_with_tag(ttokens, 'TO'):
                         vps.update([(to_tt,) + p for p in vp_phrases])
 
-            if tag.startswith('N') or tag in ['JJ', 'PRP', 'PRP$', 'IN', 'TO', 'DT']:
-                pp_phrases = phrases.get('PP', [])
+            # TODO: add PP phrases
+            # if tag.startswith('N') or tag in ['JJ', 'PRP', 'PRP$', 'IN', 'TO', 'DT']:
+            #     pp_phrases = token_phrases.get('PP', [])
 
-                # if pp_phrases:
-                #     dts, ns, vs = kws_with_tag('DT'), kws_with_tag('N'), kws_with_tag('V')
-                #
-                #     for
+            # if pp_phrases:
+            #     dts, ns, vs = kws_with_tag('DT'), kws_with_tag('N'), kws_with_tag('V')
+            #
+            #     for
+
         sents_candidates = self.combine_elements(nps, vps)
+
         print('%d sentences candidates\n' % len(sents_candidates))
 
         ranked_sents = self.rank_sents(sents_candidates, ttokens)
@@ -137,13 +145,17 @@ def pprint_sents(sents, show_details=False):
 
 
 def main():
-    gen = TextGenerator(corpora=load_corpora().lower(), n=3, test=False)
+    # corpora = load_corpora().lower()
+    corpora = None
+
+    gen = TextGenerator(corpora=corpora, n=3, test=False)
 
     while True:
         keywords = input('keywords: ').lower().split(' ')
 
         pprint_sents(gen.generate(keywords, limit=5))
         print()
+
 
 if __name__ == '__main__':
     main()

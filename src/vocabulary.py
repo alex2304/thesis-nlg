@@ -6,7 +6,7 @@ from nltk import sent_tokenize, flatten, defaultdict, pos_tag
 from src.grammars import parse_phrases
 from src.io import load_corpora, load_voc, save_voc, load_phrases, save_phrases
 from src.nltk_utils import Lemmatizer, Tokenizer, Stemmer, Parser
-from src.utils import n_grams, n_grams_model, get_ngrams_containing
+from src.ngrams import n_grams, n_grams_model, get_ngrams_containing
 
 
 class WordInfo:
@@ -45,12 +45,22 @@ class Vocabulary:
         self.parser = parser
 
         # segment sentences
-        sents = sent_tokenize(corpora)
-        if test:
-            sents = sents[:10]
+        if isinstance(corpora, str):
+            sents = sent_tokenize(corpora)
+
+            if test:
+                sents = sents[:10]
+
+            sents_tokens = tokenizer.tokenize_sents(sents)
+
+        else:
+            sents_tokens = corpora
+
+            if test:
+                sents_tokens = sents_tokens[:10]
 
         # tokenizing and POS tagging
-        tokens = list(flatten(tokenizer.tokenize_sents(sents)))
+        tokens = list(flatten(sents_tokens))
         ttokens = pos_tag(tokens)
 
         # stemming
@@ -79,7 +89,7 @@ class Vocabulary:
             self._l_words[w.lemma].add(w)
 
         # create n-gram models
-        ordered_tokens = flatten(tokenizer.tokenize_sents(sents))
+        ordered_tokens = list(flatten(sents_tokens))
         ordered_ttokens = pos_tag(ordered_tokens)
 
         tokens_indexes = parser.parse_tokens(ordered_tokens)
@@ -205,6 +215,8 @@ class Vocabulary:
         tokens, tags = zip(*ttokens)
 
         # TODO: smoothing (penalize short sentences)
+        # TODO: add dependency model (NP, VP, ...)
+        # TODO: fix morpheme model as in paper
         # P('There was heavy rain') ~ P('There')P('was'|'There')P('heavy'|'was')P('rain'|'heavy')
 
         # language model
@@ -236,6 +248,7 @@ class Vocabulary:
         tokens_ngrams = n_grams(tokens, n=self.n)
 
         ngrams_with_kws = set()
+
         for kw in kws:
             ngrams_with_kws.update(get_ngrams_containing(tokens_ngrams, kw[0]))
 
@@ -247,7 +260,7 @@ class Vocabulary:
         return kw_prod_model
 
 
-def get_vocabulary(corpora, reload_corpora=False, reload_phrases=False, n=1, test=False) -> Vocabulary:
+def get_vocabulary(corpora=None, reload_corpora=False, reload_phrases=False, n=1, test=False) -> Vocabulary:
     voc = load_voc()
 
     if not voc or reload_corpora or (voc.n != n or voc.test != test):
@@ -266,5 +279,11 @@ def get_vocabulary(corpora, reload_corpora=False, reload_phrases=False, n=1, tes
 
 
 if __name__ == '__main__':
-    vocabulary = get_vocabulary(load_corpora().lower(), reload_corpora=True, n=2, reload_phrases=False, test=False)
-    # save_phrases(vocabulary._t_phrases, overwrite=True)
+    from nltk.corpus import gutenberg
+
+    corpora = []
+    for fid in gutenberg.fileids()[:3]:
+        corpora.extend(gutenberg.sents(fid))
+
+    # corpora = load_corpora().lower()
+    vocabulary = get_vocabulary(corpora, reload_corpora=True, n=3, reload_phrases=True, test=False)

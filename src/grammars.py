@@ -245,11 +245,87 @@ RB -> "RB"
 '''
 
 grammars = [(np_g, 'NP'), (vp_g, 'VP'), (pp_g, 'PP'), (adjp_g, 'ADJP'), (advp_g, 'ADVP')]
+
+grammars_voc = {
+    'NP': {
+        "NN",
+        "NNS",
+        "NNP",
+
+        "PRP",
+        "PRP$",
+
+        "JJ",
+
+        "DT",
+
+        "IN",
+
+        "TO"
+    },
+
+    'VP': {
+        "NN",
+        "NNS",
+        "NNP",
+
+        "PRP",
+        "PRP$",
+
+        "VB",
+        "VBP",
+        "VBZ",
+        "VBG",
+        "VBD",
+        "VBN",
+
+        "JJ",
+
+        "DT",
+
+        "IN",
+
+        "TO",
+
+        "RB"
+    },
+
+    'PP': {
+        "NN",
+        "NNS",
+        "NNP",
+
+        "PRP",
+        "PRP$",
+
+        "JJ",
+
+        "DT",
+
+        "IN",
+
+        "TO"
+    },
+
+    'ADJP': {
+        'JJ',
+
+        'DT'
+    },
+
+    'ADVP': {
+        'RB'
+    }
+}
+
 g_parsers = [(RecursiveDescentParser(CFG.fromstring(g)), g_type)
              for g, g_type in grammars]
 
 
 def preparse_tags(parser_type, _tags):
+    if not grammars_voc[parser_type].issuperset(set(_tags)):
+        return False
+
     noun_first, noun_last = {'DT', 'JJ', 'PRP', 'PRP$'}, {'PRP'}
     verb_first, verb_last = {'TO'}, {'RB'}
     pp_first = {'IN', 'TO'}
@@ -261,7 +337,7 @@ def preparse_tags(parser_type, _tags):
         return (first.startswith('N') or first in noun_first) and (last.startswith('N') or last in noun_last)
     elif parser_type == 'VP':
         return (first.startswith('V') or _tags[0] in verb_first) and (
-            last.startswith('V') or last.startswith('N') or last in noun_last or last in verb_last)
+                last.startswith('V') or last.startswith('N') or last in noun_last or last in verb_last)
     elif parser_type == 'PP':
         return (first in pp_first) and (last.startswith('N') or last in noun_last)
     elif parser_type == 'ADJP':
@@ -282,19 +358,17 @@ def parse_phrases(tt_ngrams, n) -> Tuple[List, List[List[Tuple]]]:
         for p, p_type in g_parsers:
             # TODO: check if tags have been already observed
             if preparse_tags(p_type, tags):
-                try:
-                    trees = list(p.parse(tags))
+                trees = list(p.parse(tags))
 
-                    if trees:
-                        phrase = tt_gram
-                        phrases.append(phrase)
-                        phrases_types.append(p_type)
-                        break
-                except:
-                    pass
+                if trees:
+                    phrase = tt_gram
+                    phrases.append(phrase)
+                    phrases_types.append(p_type)
+                    break
 
     assert len(phrases_types) == len(phrases)
     return phrases_types, phrases
+
 
 if __name__ == '__main__':
     gramm = vp_g

@@ -8,13 +8,7 @@ from nltk.parse.stanford import StanfordParser
 from nltk.tokenize import WordPunctTokenizer, TreebankWordTokenizer, PunktSentenceTokenizer
 
 from src.nltk_utils import penn_to_wn, Tokenizer, create_grammar, Stemmer, Lemmatizer
-from src.utils import load_corpora
-
-
-def polyglot_download(module_id: str):
-    _dir = './data'
-    from polyglot.downloader import downloader
-    return downloader.download(module_id, download_dir=_dir)
+from src.io import load_corpora
 
 
 def nltk_download(res_id: str):
@@ -174,8 +168,49 @@ def test_cfg():
             print(e)
 
 
+def test_kneser_ney():
+    def train_and_test(est):
+        hmm = trainer.train_supervised(train_corpus, estimator=est)
+
+        print('%.2f%%' % (100 * hmm.evaluate(test_corpus)))
+
+    corpus = nltk.corpus.brown.tagged_sents(categories='adventure')[:500]
+
+    est = nltk.KneserNeyProbDist(nltk.FreqDist((tt for sent in corpus for tt in nltk.trigrams(sent))))
+
+    print(est.prob((('right', 'RB'), ("''", "''"), (',', ','))))
+    # print(est.max())
+    print(est.generate())
+    # print(est.sa mples())
+    return
+    corpus = [[((x[0], y[0], z[0]), (x[1], y[1], z[1]))
+               for x, y, z in nltk.trigrams(sent)]
+              for sent in corpus]
+    tag_set = nltk.unique_list(tag for sent in corpus for (word, tag) in sent)
+    print(len(tag_set))
+
+    symbols = nltk.unique_list(word for sent in corpus for (word, tag) in sent)
+    print(len(symbols))
+
+    trainer = nltk.tag.HiddenMarkovModelTrainer(tag_set, symbols)
+
+    train_corpus, test_corpus = [], []
+    for i in range(len(corpus)):
+        if i % 5:
+            train_corpus += [corpus[i]]
+        else:
+            test_corpus += [corpus[i]]
+
+    print(len(train_corpus), len(test_corpus))
+
+    kn = lambda fd, bins: nltk.KneserNeyProbDist(fd, bins)
+
+    train_and_test(kn)
+
 if __name__ == '__main__':
     # test_parser()
     # test_tokenizer()
-    test_cfg()
+    # test_cfg()
     # test_pos()
+    test_kneser_ney()
+
