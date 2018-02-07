@@ -34,6 +34,13 @@ ADVP* (RB):
 2) DT, JJ => get ADJPs
                   
 '''
+
+# CC - coordinating conjunction
+# CD - cardinal number
+# PDT - predeterminers
+# POS - possessive endings
+
+# sentence grammar
 s_g = '''
 S -> NP VP
 
@@ -54,16 +61,30 @@ VP -> V NP
 VP -> V NP ADVP  
 VP -> V NP PP
 VP -> TO VP
+VP -> MD VP
 
-PP -> IN NP | TO NP
-ADJP -> DT JJ
-ADJP -> JJ
+PP -> IN NP
+PP -> TO NP
+PP -> IN ADVP
+
+ADJP -> J
+ADJP -> DT J
+ADJP -> ADJP PP
+
 ADVP -> RB
+ADVP -> JJR
 
 N -> NN | NNS
+
+J -> JJ | JC
+JC -> JJR | JJS
+
 V -> VPG | VDN
 VPG -> VB | VBP | VBZ | VBG
 VDN -> VBD | VBN
+
+R -> RB | RBC
+RBC -> RBR | RBS
 
 NN -> "NN"
 NNS -> "NNS"
@@ -78,8 +99,16 @@ VBG -> "VBG"
 VBD -> "VBD"
 VBN -> "VBN"
 
-RB -> "RB"
+MD -> "MD"
+
 JJ -> "JJ"
+JJR -> "JJR"
+JJS -> "JJS"
+
+RB -> "RB"
+RBR -> "RBR"
+RBS -> "RBS"
+
 DT -> "DT"
 IN -> "IN"
 TO -> "TO"

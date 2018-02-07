@@ -282,7 +282,7 @@ if __name__ == '__main__':
     from nltk.corpus import gutenberg
 
     corpora = []
-    for fid in gutenberg.fileids()[:4]:
+    for fid in gutenberg.fileids():
         corpora.extend(gutenberg.sents(fid))
 
     # corpora = load_corpora().lower()
