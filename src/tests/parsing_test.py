@@ -1,0 +1,178 @@
+import pickle
+
+from os.path import join, dirname
+
+import os
+from typing import Union
+
+from nltk import pos_tag_sents, word_tokenize, sent_tokenize, defaultdict, Counter, pprint
+from nltk.parse.stanford import StanfordParser
+
+from src.io import load_corpora
+from src.ngrams import ngram2str
+
+
+def build_parser():
+    parser_folder_path = join(dirname(__file__), './standford_parser')
+
+    parser = StanfordParser(path_to_jar=join(parser_folder_path, 'stanford-parser.jar'),
+                            path_to_models_jar=join(parser_folder_path, 'stanford-parser-3.4.1-models.jar'))
+
+    return parser
+
+
+parser = build_parser()
+target_labels = ('NP', 'VP', 'PP', 'ADJP', 'ADVP')
+
+
+def get_tagged_sents(text):
+    if isinstance(text, str):
+        sents = sent_tokenize(text)
+
+        sents_tokens = [word_tokenize(s)
+                        for s in sents]
+
+    else:
+        sents_tokens = text
+
+    tagged_sentences = pos_tag_sents(sents_tokens)
+
+    return tagged_sentences
+
+
+def replace_tags(sequence: Union[tuple, list]):
+    accepted_tags = ['CC',
+                     'CD',
+                     'DT',
+                     'EX',
+                     'FW',
+                     'IN',
+                     'JJ',
+                     'JJR',
+                     'JJS',
+                     'LS',
+                     'MD',
+                     'NN',
+                     'NNS',
+                     'NNP',
+                     'NNPS',
+                     'PDT',
+                     'POS',
+                     'PRP',
+                     'PRP$',
+                     'RB',
+                     'RBR',
+                     'RBS',
+                     'RP',
+                     'SYM',
+                     'TO',
+                     'UH',
+                     'VB',
+                     'VBD',
+                     'VBG',
+                     'VBN',
+                     'VBP',
+                     'VBZ',
+                     'WDT',
+                     'WP',
+                     'WP$',
+                     'WRB']
+
+    replacements = {
+        'PRP$': 'PRPS',
+        'WP$': 'WPS'
+    }
+
+    return tuple([replacements.get(tag) or tag
+                  for tag in sequence
+                  if tag in accepted_tags])
+
+
+prods_file_path = os.path.join(os.path.dirname(__file__), 'productions')
+
+
+def load_prods():
+    if os.path.exists(prods_file_path):
+        with open(prods_file_path, mode='rb') as f:
+            try:
+                productions = pickle.load(f)
+
+            except:
+                productions = None
+
+    else:
+        productions = None
+
+    if productions is None:
+        productions = defaultdict(set)
+
+    return productions
+
+
+def save_prods(productions):
+    with open(prods_file_path, mode='wb') as f:
+        pickle.dump(productions, f)
+
+
+def extract_productions(text):
+    tagged_sents = get_tagged_sents(text)
+
+    productions = load_prods()
+
+    # build sentences trees
+    trees_iters = list(parser.tagged_parse_sents(tagged_sents))
+
+    for tree_iter in trees_iters:
+        try:
+            tree = next(tree_iter)
+
+            for production in tree.productions():
+                if production.is_nonlexical():
+                    lhs, rhs = production.lhs(), production.rhs()
+
+                    label = lhs.symbol()
+                    sequence = replace_tags([n.symbol() for n in rhs])
+
+                    if label in target_labels:
+                        sequence_str = ngram2str(sequence, sep=' ')
+
+                        productions[label].add(sequence_str)
+
+        except StopIteration:
+            pass
+
+    save_prods(productions)
+
+    return productions
+
+
+def display_prods(label=None):
+    prods = load_prods()
+
+    if label:
+        pprint(prods.get(label, {}))
+
+    for p in prods:
+        print(p, len(prods[p]))
+
+    print()
+
+
+def demo():
+    while True:
+        input_text = input('> ')
+
+        prods = extract_productions(input_text)
+
+        print(prods)
+
+
+if __name__ == '__main__':
+    # demo()
+    corpus = load_corpora(test=True)
+
+    display_prods()
+
+    extract_productions(corpus)
+
+    display_prods()

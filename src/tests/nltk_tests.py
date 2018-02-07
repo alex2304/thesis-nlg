@@ -82,7 +82,16 @@ def test_parser():
     _path = join(dirname(__file__), './standford_parser')
     parser = StanfordParser(join(_path, 'stanford-parser.jar'), join(_path, 'stanford-parser-3.4.1-models.jar'))
 
-    # tagged sentences
+    def subtree_filter(t):
+        h = t.height()
+        l = len(t.leaves())
+
+        if h <= 2:
+            return True
+        elif 2 <= l <= 3:
+            return True
+        else:
+            return False
 
     while True:
         text = input('> ')
@@ -96,19 +105,11 @@ def test_parser():
             try:
                 tree = next(tree_iter)
 
-                # def subtree_filter(t):
-                #     h = t.height()
-                #     l = len(t.leaves())
-                #
-                #     if h <= 2:
-                #         return True
-                #     elif 2 <= l <= 3:
-                #         return True
-                #     else:
-                #         return False
-                #
-                # for subtree in tree.subtrees(subtree_filter):
-                #     print(subtree.leaves())
+                for subtree in tree.subtrees(subtree_filter):
+                    if subtree.label() in ('NP', 'VP'):
+                        print(subtree.productions())
+
+                    print(subtree.leaves())
 
                 tree.draw()
             except StopIteration:

@@ -279,11 +279,6 @@ def get_vocabulary(corpora=None, reload_corpora=False, reload_phrases=False, n=1
 
 
 if __name__ == '__main__':
-    from nltk.corpus import gutenberg
+    corpora = load_corpora()
 
-    corpora = []
-    for fid in gutenberg.fileids():
-        corpora.extend(gutenberg.sents(fid))
-
-    # corpora = load_corpora().lower()
     vocabulary = get_vocabulary(corpora, reload_corpora=True, n=3, reload_phrases=True, test=False)

@@ -1,6 +1,9 @@
 import json
 import os
 import pickle
+import random
+
+from typing import List
 
 corpora_root_folder = os.path.join(os.path.dirname(__file__), '../corpora/')
 cache_root = os.path.join(os.path.dirname(__file__), '../cache/')
@@ -37,14 +40,27 @@ def hinted_tuple_hook(obj):
         return obj
 
 
-def load_corpora(root_folder=corpora_root_folder, files_delimiter=' '):
-    corpora = []
+def load_corpora(root_folder=corpora_root_folder, files_delimiter=' ', test=False) -> List[List[str]]:
+    from nltk.corpus import gutenberg
 
-    for f_name in os.listdir(root_folder):
-        with open(os.path.join(root_folder, f_name), mode='r', encoding='utf-8') as f:
-            corpora.append(f.read())
+    if test:
+        file_sents = gutenberg.sents(random.choice(gutenberg.fileids()))[:20]
 
-    return files_delimiter.join(corpora)
+        corpora = random.sample(file_sents, k=15)
+
+    else:
+        corpora = []
+        for fid in gutenberg.fileids():
+            corpora.extend(gutenberg.sents(fid))
+
+    return corpora
+    # corpora = []
+    #
+    # for f_name in os.listdir(root_folder):
+    #     with open(os.path.join(root_folder, f_name), mode='r', encoding='utf-8') as f:
+    #         corpora.append(f.read())
+    #
+    # return files_delimiter.join(corpora)
 
 
 def save_voc(voc, overwrite=False):

@@ -34,7 +34,27 @@ ADVP* (RB):
 2) DT, JJ => get ADJPs
                   
 '''
-
+# possible_labels = ['NN',
+#                        'NNS',
+#                        'NNP',
+#                        'PRP',
+#                        'PRPS',
+#                        'VB',
+#                        'VBP',
+#                        'VBZ',
+#                        'VBG',
+#                        'VBD',
+#                        'VBN',
+#                        'MD',
+#                        'JJ',
+#                        'JJR',
+#                        'JJS',
+#                        'RB',
+#                        'RBR',
+#                        'RBS',
+#                        'DT',
+#                        'IN',
+#                        'TO']
 # CC - coordinating conjunction
 # CD - cardinal number
 # PDT - predeterminers
