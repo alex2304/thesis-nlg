@@ -8,6 +8,8 @@ cache_root = os.path.join(os.path.dirname(__file__), '../cache/')
 voc_file_path = os.path.join(cache_root, 'voc')
 phrases_file_path = os.path.join(cache_root, 'phrases')
 
+observed_tags_file_path = os.path.join(cache_root, 'observed_tags.json')
+
 
 class MultiDimensionalArrayEncoder(json.JSONEncoder):
     def encode(self, obj):
@@ -83,10 +85,34 @@ def load_phrases():
         return result
 
 
+def load_observed_tags():
+    if not os.path.exists(observed_tags_file_path):
+        return None
+
+    with open(observed_tags_file_path, encoding='utf-8') as f:
+        try:
+            result = json.load(f)
+
+        except:
+            result = None
+
+        return result
+
+
+def save_observed_tags(observed_tags_dict):
+    with open(observed_tags_file_path, mode='w', encoding='utf-8') as f:
+        json.dump(observed_tags_dict, f)
+
+    return True
+
+
 if __name__ == '__main__':
-    enc = MultiDimensionalArrayEncoder()
-    jsonstring = enc.encode({"NP": {(1, (2, 3)), (4, 5, 6)}})
+    # enc = MultiDimensionalArrayEncoder()
+    # jsonstring = enc.encode({"NP": {(1, (2, 3)), (4, 5, 6)}})
+    #
+    # print(jsonstring)
+    #
+    # print(json.loads(jsonstring, object_hook=hinted_tuple_hook))
+    observed_tags = load_observed_tags()
 
-    print(jsonstring)
-
-    print(json.loads(jsonstring, object_hook=hinted_tuple_hook))
+    print(len([ot for ot in observed_tags if observed_tags[ot]]))

@@ -4,6 +4,22 @@ from typing import List, Any, Dict, Tuple
 
 import nltk
 
+ngrams_separator = '_'
+
+
+def ngram2str(ngram: tuple, sep: str = ngrams_separator):
+    if isinstance(ngram, str):
+        return ngram
+
+    return sep.join([str(e) for e in ngram])
+
+
+def str2ngram(text: str, sep: str = ngrams_separator) -> tuple:
+    if isinstance(text, tuple):
+        return text
+
+    return tuple(text.split(sep))
+
 
 def n_grams(elements: List[Any], n=1, indexes=None, pad_left=True) -> List[Tuple[Any]]:
     """

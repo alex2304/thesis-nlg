@@ -1,8 +1,11 @@
+import traceback
 from typing import List, Tuple
 
 from nltk import CFG, RecursiveDescentParser, pos_tag, defaultdict
 from tqdm import tqdm
 
+from src.io import load_observed_tags, save_observed_tags
+from src.ngrams import ngram2str
 from src.nltk_utils import Tokenizer, Lemmatizer, Stemmer
 
 '''
@@ -352,21 +355,47 @@ def parse_phrases(tt_ngrams, n) -> Tuple[List, List[List[Tuple]]]:
     phrases = []
     phrases_types = []
 
-    for tt_gram in tqdm(tt_ngrams, desc='parsing phrases from %d-grams' % n):
-        tags = [tag for _, tag in tt_gram]
+    observed_tags = load_observed_tags()
 
+    if observed_tags is None:
+        observed_tags = dict()
+
+    for tt_gram in tqdm(tt_ngrams, desc='parsing phrases from %d-grams' % n):
+        tags = tuple([tag for _, tag in tt_gram])
+
+        phrase = tt_gram
+
+        # check if tags have been already observed
+        tags_str = ngram2str(tags)
+
+        if tags_str in observed_tags:
+            if observed_tags[tags_str] is not None:
+                phrases.append(phrase)
+                phrases_types.append(observed_tags[tags_str])
+
+            continue
+
+        # if tags haven't been observed
         for p, p_type in g_parsers:
-            # TODO: check if tags have been already observed
             if preparse_tags(p_type, tags):
                 trees = list(p.parse(tags))
 
                 if trees:
-                    phrase = tt_gram
+                    observed_tags[tags_str] = p_type
+
                     phrases.append(phrase)
                     phrases_types.append(p_type)
                     break
 
-    assert len(phrases_types) == len(phrases)
+        else:
+            observed_tags[tags_str] = None
+
+    try:
+        save_observed_tags(observed_tags)
+
+    except Exception as e:
+        traceback.print_exc(e)
+
     return phrases_types, phrases
 
 
