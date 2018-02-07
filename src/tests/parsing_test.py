@@ -1,4 +1,6 @@
 import pickle
+import traceback
+from math import ceil
 
 from os.path import join, dirname
 
@@ -7,9 +9,10 @@ from typing import Union
 
 from nltk import pos_tag_sents, word_tokenize, sent_tokenize, defaultdict, Counter, pprint
 from nltk.parse.stanford import StanfordParser
+from tqdm import tqdm
 
 from src.io import load_corpora
-from src.ngrams import ngram2str
+from src.ngrams import ngram2str, n_grams
 
 
 def build_parser():
@@ -22,7 +25,70 @@ def build_parser():
 
 
 parser = build_parser()
+
 target_labels = ('NP', 'VP', 'PP', 'ADJP', 'ADVP')
+
+accepted_tags = ['CC',
+                 'CD',
+                 'DT',
+                 'EX',
+                 'FW',
+                 'IN',
+                 'JJ',
+                 'JJR',
+                 'JJS',
+                 'LS',
+                 'MD',
+                 'NN',
+                 'NNS',
+                 'NNP',
+                 'NNPS',
+                 'PDT',
+                 'POS',
+                 'PRP',
+                 'PRP$',
+                 'RB',
+                 'RBR',
+                 'RBS',
+                 'RP',
+                 'SYM',
+                 'TO',
+                 'UH',
+                 'VB',
+                 'VBD',
+                 'VBG',
+                 'VBN',
+                 'VBP',
+                 'VBZ',
+                 'WDT',
+                 'WP',
+                 'WP$',
+                 'WRB'] + list(target_labels)
+
+replacements = {
+    'PRP$': 'PRPS',
+    'WP$': 'WPS'
+}
+
+prods_file_path = os.path.join(os.path.dirname(__file__), 'productions')
+
+
+def empty_prods():
+    # {
+    #     'NP': {
+    #         'NN NN': 1,
+    #         'NN': 2
+    #     },
+    #     'VP': {
+    #         'VBS': 10,
+    #         'VP VBS': 5
+    #     },
+    #     # ...
+    # }
+    return {
+        label: defaultdict(int)
+        for label in target_labels
+    }
 
 
 def get_tagged_sents(text):
@@ -40,55 +106,16 @@ def get_tagged_sents(text):
     return tagged_sentences
 
 
-def replace_tags(sequence: Union[tuple, list]):
-    accepted_tags = ['CC',
-                     'CD',
-                     'DT',
-                     'EX',
-                     'FW',
-                     'IN',
-                     'JJ',
-                     'JJR',
-                     'JJS',
-                     'LS',
-                     'MD',
-                     'NN',
-                     'NNS',
-                     'NNP',
-                     'NNPS',
-                     'PDT',
-                     'POS',
-                     'PRP',
-                     'PRP$',
-                     'RB',
-                     'RBR',
-                     'RBS',
-                     'RP',
-                     'SYM',
-                     'TO',
-                     'UH',
-                     'VB',
-                     'VBD',
-                     'VBG',
-                     'VBN',
-                     'VBP',
-                     'VBZ',
-                     'WDT',
-                     'WP',
-                     'WP$',
-                     'WRB']
+def validate_tags(sequence: Union[tuple, list]) -> tuple:
+    validated = []
 
-    replacements = {
-        'PRP$': 'PRPS',
-        'WP$': 'WPS'
-    }
+    for tag in sequence:
+        if tag not in accepted_tags:
+            return tuple()
 
-    return tuple([replacements.get(tag) or tag
-                  for tag in sequence
-                  if tag in accepted_tags])
+        validated.append(replacements.get(tag) or tag)
 
-
-prods_file_path = os.path.join(os.path.dirname(__file__), 'productions')
+    return tuple(validated)
 
 
 def load_prods():
@@ -104,7 +131,7 @@ def load_prods():
         productions = None
 
     if productions is None:
-        productions = defaultdict(set)
+        productions = empty_prods()
 
     return productions
 
@@ -119,6 +146,15 @@ def extract_productions(text):
 
     productions = load_prods()
 
+    # TODO: find n-grams which were already parsed?
+    # tags_ngrams = []
+    #
+    # for sent in tagged_sents:
+    #     sent_tags = [tag for _, tag in sent]
+    #
+    #     for n in range(1, 6 + 1):
+    #         tags_ngrams.extend(n_grams(sent_tags, n))
+
     # build sentences trees
     trees_iters = list(parser.tagged_parse_sents(tagged_sents))
 
@@ -131,12 +167,12 @@ def extract_productions(text):
                     lhs, rhs = production.lhs(), production.rhs()
 
                     label = lhs.symbol()
-                    sequence = replace_tags([n.symbol() for n in rhs])
+                    tags = validate_tags([n.symbol() for n in rhs])
 
-                    if label in target_labels:
-                        sequence_str = ngram2str(sequence, sep=' ')
+                    if label in target_labels and tags:
+                        tags_str = ngram2str(tags, sep=' ')
 
-                        productions[label].add(sequence_str)
+                        productions[label][tags_str] += 1
 
         except StopIteration:
             pass
@@ -169,10 +205,18 @@ def demo():
 
 if __name__ == '__main__':
     # demo()
-    corpus = load_corpora(test=True)
 
-    display_prods()
+    corpora = load_corpora(test=False)
 
-    extract_productions(corpus)
+    sents_per_time = 20
+    iters = int(ceil(len(corpora) / sents_per_time))
+
+    for i in tqdm(range(iters)):
+        corpus = corpora[sents_per_time * i: sents_per_time * (i + 1)]
+
+        try:
+            extract_productions(corpus)
+        except:
+            traceback.print_exc()
 
     display_prods()
