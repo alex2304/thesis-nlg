@@ -24,7 +24,7 @@ def build_parser():
 
 parser = build_parser()
 
-target_labels = ('S',)
+target_labels = ('NP', 'VP', 'PP', 'ADJP', 'ADVP')
 
 not_terminals = ['S', 'NP', 'VP', 'PP', 'ADJP', 'ADVP']
 
@@ -87,7 +87,7 @@ replacements = {
     ';': 'SEMICOLON'
 }
 
-prods_file_path = os.path.join(os.path.dirname(__file__), 'productions_sents')
+prods_file_path = os.path.join(os.path.dirname(__file__), 'productions')
 
 
 def empty_prods():

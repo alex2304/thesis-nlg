@@ -2,7 +2,7 @@ from itertools import product
 from operator import itemgetter
 from typing import List, Tuple
 
-from nltk import pos_tag, pprint, Text
+from nltk import pos_tag, pprint
 
 # noinspection PyUnresolvedReferences
 from src.vocabulary import get_vocabulary, Vocabulary, WordInfo

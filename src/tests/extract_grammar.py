@@ -1,7 +1,5 @@
-from collections import defaultdict
-from pprint import pprint
-
 import os
+from collections import defaultdict
 
 from src.ngrams import str2ngram
 from src.tests.parsing_test import load_prods, target_labels, terminals, replacements
@@ -82,5 +80,5 @@ def extract_grammar(min_freq, min_count, max_count, target_label=None):
 
 
 if __name__ == '__main__':
-    extract_grammar(min_freq=5e-3,
-                    min_count=0, max_count=30)
+    extract_grammar(min_freq=3e-3,
+                    min_count=30, max_count=50)
