@@ -1,9 +1,13 @@
+from collections import defaultdict
 from itertools import combinations
 
+from nltk import pos_tag, flatten
 from nltk.corpus import wordnet as wn
 from nltk.corpus.reader import itemgetter, pprint
 
-from src.nltk_utils import Lemmatizer
+from src.grammars import parse_phrases
+from src.ngrams import n_grams
+from src.nltk_utils import Lemmatizer, Tokenizer, Parser
 # noinspection PyUnresolvedReferences
 from src.vocabulary import get_vocabulary, Vocabulary, WordInfo
 
@@ -63,5 +67,50 @@ if __name__ == '__main__':
 
     voc = get_vocabulary()
 
-    for w in not_sim_cluster:
-        pprint(voc.get_phrases_containing(w))
+    tokenizer = Tokenizer()
+    parser = Parser()
+
+    for w in lemmas:
+        phrases = voc.get_phrases_containing(w)
+
+        if not phrases:
+            hypernyms = synsets[w].hypernyms() or []
+
+            for h in hypernyms:
+                h_word = h.name().split('.')[0]
+                phrases = voc.get_phrases_containing(w)
+                if phrases:
+                    break
+
+            else:
+                phrases = defaultdict(set)
+
+        if not phrases:
+            examples = [e + '.' for e in synsets[w].examples()]
+
+            if examples:
+                sents_tokens = tokenizer.tokenize_sents(examples)
+
+                tokens = list(flatten(sents_tokens))
+
+                ordered_tokens = list(flatten(sents_tokens))
+                ordered_ttokens = pos_tag(ordered_tokens)
+
+                tokens_indexes = parser.parse_tokens(ordered_tokens)
+
+                for i in range(2, 5):
+                    tt_ngrams = list(n_grams(ordered_ttokens, i, tokens_indexes, pad_left=False))
+
+                    ngrams_containing_word = tt_ngrams# []
+
+                    # for ngram in tt_ngrams:
+                    #     ngram_tokens = [token for token, _ in ngram]
+                    #     if w in ngram_tokens:
+                    #         ngrams_containing_word.append(ngram)
+
+                    types, types_phrases = parse_phrases(ngrams_containing_word, i)
+
+                    for t, p in zip(types, types_phrases):
+                        phrases[t].add(p)
+
+        print(w, phrases)
