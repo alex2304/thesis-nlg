@@ -1,8 +1,12 @@
 from collections import defaultdict
 from pprint import pprint
 
+import os
+
 from src.ngrams import str2ngram
 from src.tests.parsing_test import load_prods, target_labels, terminals, replacements
+
+grammar_file_path = os.path.join(os.path.dirname(__file__), 'grammar.txt')
 
 
 def choose_best_productions(productions, min_freq, min_count, max_count):
@@ -35,19 +39,19 @@ def get_prods_str(label, rules):
 
 
 def get_terminals_str():
-    return '\n'.join(['%s -> %s' % (t, replacements.get(t) or t)
+    return '\n'.join(['%s -> "%s"' % (replacements.get(t) or t, t)
                       for t in terminals])
 
 
-def extract_grammar(target_label=None):
+def extract_grammar(min_freq, min_count, max_count, target_label=None):
     grammar = load_prods()
 
     best_productions = empty_productions()
 
     for label, productions in grammar.items():
         best_label_prods = choose_best_productions(productions,
-                                                   min_freq=2.5e-3,
-                                                   min_count=30, max_count=50)
+                                                   min_freq=min_freq,
+                                                   min_count=min_count, max_count=max_count)
 
         print(label, len(best_label_prods))
 
@@ -73,9 +77,10 @@ def extract_grammar(target_label=None):
 
     grammar_str += get_terminals_str()
 
-    with open('grammar.txt', mode='w', encoding='utf-8') as f:
+    with open(grammar_file_path, mode='w', encoding='utf-8') as f:
         f.write(grammar_str)
 
 
 if __name__ == '__main__':
-    extract_grammar()
+    extract_grammar(min_freq=5e-3,
+                    min_count=0, max_count=30)

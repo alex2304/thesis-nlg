@@ -263,7 +263,8 @@ class Vocabulary:
 def get_vocabulary(corpora=None, reload_corpora=False, reload_phrases=False, n=1, test=False) -> Vocabulary:
     voc = load_voc()
 
-    if not voc or reload_corpora or (voc.n != n or voc.test != test):
+    if not voc or reload_corpora:
+        print('re')
         if not reload_phrases:
             phrases = load_phrases()
         else:

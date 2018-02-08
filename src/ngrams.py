@@ -128,3 +128,13 @@ def n_grams_model(elements: List[Any], n=1, indexes=None, pad_left=True, skip_gr
         counted[k] /= total_count
 
     return counted
+
+
+def get_ngrams_containing(ngrams: List[Tuple], gram: str) -> List[Tuple]:
+    ngrams_containing = []
+
+    for ngram in ngrams:
+        if gram in ngram:
+            ngrams_containing.append(ngram)
+
+    return ngrams_containing

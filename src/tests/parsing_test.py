@@ -1,18 +1,16 @@
+import os
 import pickle
 import traceback
 from math import ceil
-
 from os.path import join, dirname
-
-import os
 from typing import Union
 
-from nltk import pos_tag_sents, word_tokenize, sent_tokenize, defaultdict, Counter, pprint
+from nltk import pos_tag_sents, word_tokenize, sent_tokenize, defaultdict, pprint
 from nltk.parse.stanford import StanfordParser
 from tqdm import tqdm
 
 from src.io import load_corpora
-from src.ngrams import ngram2str, n_grams
+from src.ngrams import ngram2str
 
 
 def build_parser():
@@ -26,7 +24,9 @@ def build_parser():
 
 parser = build_parser()
 
-target_labels = ('NP', 'VP', 'PP', 'ADJP', 'ADVP')
+target_labels = ('S',)
+
+not_terminals = ['S', 'NP', 'VP', 'PP', 'ADJP', 'ADVP']
 
 terminals = ['CC',
              'CD',
@@ -63,16 +63,31 @@ terminals = ['CC',
              'WDT',
              'WP',
              'WP$',
-             'WRB']
+             'WRB'] + [',',
+                       ':',
+                       ';',
+                       '.',
+                       '?',
+                       '!',
+                       '-',
+                       '—']
 
-accepted_tags = terminals + list(target_labels)
+accepted_tags = terminals + list(not_terminals)
 
 replacements = {
     'PRP$': 'PRPS',
-    'WP$': 'WPS'
+    'WP$': 'WPS',
+    ',': 'COMMA',
+    '-': 'DASH',
+    '—': 'DASH',
+    '?': 'QUESTION',
+    '!': 'EXCLAM',
+    '.': 'DOT',
+    ':': 'COLON',
+    ';': 'SEMICOLON'
 }
 
-prods_file_path = os.path.join(os.path.dirname(__file__), 'productions')
+prods_file_path = os.path.join(os.path.dirname(__file__), 'productions_sents')
 
 
 def empty_prods():
@@ -143,19 +158,10 @@ def save_prods(productions):
         pickle.dump(productions, f)
 
 
-def extract_productions(text):
+def extract_productions(text, max_deep=None):
     tagged_sents = get_tagged_sents(text)
 
     productions = load_prods()
-
-    # TODO: find n-grams which were already parsed?
-    # tags_ngrams = []
-    #
-    # for sent in tagged_sents:
-    #     sent_tags = [tag for _, tag in sent]
-    #
-    #     for n in range(1, 6 + 1):
-    #         tags_ngrams.extend(n_grams(sent_tags, n))
 
     # build sentences trees
     trees_iters = list(parser.tagged_parse_sents(tagged_sents))
@@ -205,12 +211,10 @@ def demo():
         print(prods)
 
 
-if __name__ == '__main__':
-    # demo()
-
+def exctract_productions_run():
     corpora = load_corpora(test=False)
 
-    sents_per_time = 20
+    sents_per_time = 15
     iters = int(ceil(len(corpora) / sents_per_time))
 
     for i in tqdm(range(iters)):
@@ -222,3 +226,9 @@ if __name__ == '__main__':
             traceback.print_exc()
 
     display_prods()
+
+
+if __name__ == '__main__':
+    # demo()
+
+    exctract_productions_run()
