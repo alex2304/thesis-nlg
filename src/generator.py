@@ -2,9 +2,8 @@ from itertools import product
 from operator import itemgetter
 from typing import List, Tuple
 
-from nltk import pos_tag, pprint
+from nltk import pos_tag, pprint, Text
 
-from src.io import load_corpora
 # noinspection PyUnresolvedReferences
 from src.vocabulary import get_vocabulary, Vocabulary, WordInfo
 
@@ -24,6 +23,7 @@ def kws_with_tag(ttokens, tag) -> List[Tuple]:
 class TextGenerator:
     def __init__(self, corpora: str = None, n=1, test=False):
         voc = get_vocabulary(corpora, n=n, test=test)
+
         self.voc = voc
 
         self.lemmatizer = voc.lemmatizer

@@ -5,7 +5,7 @@ from src.ngrams import str2ngram
 from src.tests.parsing_test import load_prods, target_labels, terminals, replacements
 
 
-def choose_best_productions(productions, threshold=1.0, min_freq=0.00, count_limit=None):
+def choose_best_productions(productions, min_freq, min_count, max_count):
     occurrences_number = sum(productions.values())
 
     for rule in productions:
@@ -13,15 +13,11 @@ def choose_best_productions(productions, threshold=1.0, min_freq=0.00, count_lim
 
     sorted_productions = sorted(productions.items(), key=lambda kv: kv[1], reverse=True)
 
-    if count_limit is not None:
-        productions_limit = count_limit
+    best_productions = [rule for rule, _ in sorted_productions[:min_count]]
 
-    else:
-        productions_limit = int(len(sorted_productions) * threshold)
-
-    best_productions = [rule
-                        for rule, rule_freq in sorted_productions
-                        if rule_freq > min_freq][:productions_limit]
+    best_productions.extend([rule
+                             for rule, rule_freq in sorted_productions[min_count:max_count]
+                             if rule_freq > min_freq])
 
     return best_productions
 
@@ -49,9 +45,11 @@ def extract_grammar(target_label=None):
     best_productions = empty_productions()
 
     for label, productions in grammar.items():
-        best_label_prods = choose_best_productions(productions, threshold=0.25, min_freq=5e-5, count_limit=100)
+        best_label_prods = choose_best_productions(productions,
+                                                   min_freq=2.5e-3,
+                                                   min_count=30, max_count=50)
 
-        # print(label, len(best_label_prods))
+        print(label, len(best_label_prods))
 
         for rule in best_label_prods:
             rule_tags_set = set(str2ngram(rule, sep=' '))
