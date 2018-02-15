@@ -264,7 +264,6 @@ def get_vocabulary(corpora=None, reload_corpora=False, reload_phrases=False, n=1
     voc = load_voc()
 
     if not voc or reload_corpora:
-        print('re')
         if not reload_phrases:
             phrases = load_phrases()
         else:

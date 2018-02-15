@@ -4,7 +4,7 @@ from typing import List, Tuple
 from nltk import CFG, RecursiveDescentParser, pos_tag, defaultdict
 from tqdm import tqdm
 
-from src.io import load_observed_tags, save_observed_tags
+from src.io import load_observed_tags, save_observed_tags, load_terminal_rules
 from src.ngrams import ngram2str
 from src.nltk_utils import Tokenizer, Lemmatizer, Stemmer
 
@@ -913,12 +913,14 @@ def parse_phrases(tt_ngrams, n) -> Tuple[List, List[List[Tuple]]]:
     if observed_tags is None:
         observed_tags = dict()
 
+    terminal_rules = load_terminal_rules()
+
     for tt_gram in tqdm(tt_ngrams, desc='parsing phrases from %d-grams' % n):
         tags = tuple([tag for _, tag in tt_gram])
 
         phrase = tt_gram
 
-        # check if tags have been already observed
+        # check if tags phrase has been already observed
         tags_str = ngram2str(tags)
 
         if tags_str in observed_tags:
@@ -928,17 +930,27 @@ def parse_phrases(tt_ngrams, n) -> Tuple[List, List[List[Tuple]]]:
 
             continue
 
-        # if tags haven't been observed
-        for p, p_type in g_parsers:
-            if preparse_tags(p_type, tags):
-                trees = list(p.parse(tags))
+        # if tags phrase hasn't been observed
+        # for p, p_type in g_parsers:
+        #     if preparse_tags(p_type, tags):
+        #         trees = list(p.parse(tags))
+        #
+        #         if trees:
+        #             observed_tags[tags_str] = p_type
+        #
+        #             phrases.append(phrase)
+        #             phrases_types.append(p_type)
+        #             break
 
-                if trees:
-                    observed_tags[tags_str] = p_type
+        p_types_dict = terminal_rules.get(tags_str)
 
-                    phrases.append(phrase)
-                    phrases_types.append(p_type)
-                    break
+        if p_types_dict:
+            p_type = max(p_types_dict, key=lambda k: p_types_dict[k])
+
+            phrases.append(phrase)
+            phrases_types.append(p_type)
+
+            observed_tags[tags_str] = p_type
 
         else:
             observed_tags[tags_str] = None

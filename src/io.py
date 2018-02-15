@@ -12,6 +12,7 @@ voc_file_path = os.path.join(cache_root, 'voc')
 phrases_file_path = os.path.join(cache_root, 'phrases')
 
 observed_tags_file_path = os.path.join(cache_root, 'observed_tags.json')
+terminal_rules_file_path = os.path.join(cache_root, 'terminal_rules.json')
 
 
 class MultiDimensionalArrayEncoder(json.JSONEncoder):
@@ -120,6 +121,20 @@ def save_observed_tags(observed_tags_dict):
         json.dump(observed_tags_dict, f)
 
     return True
+
+
+def load_terminal_rules():
+    if not os.path.exists(terminal_rules_file_path):
+        return None
+
+    with open(terminal_rules_file_path, encoding='utf-8') as f:
+        try:
+            result = json.load(f)
+
+        except:
+            result = None
+
+        return result
 
 
 if __name__ == '__main__':
