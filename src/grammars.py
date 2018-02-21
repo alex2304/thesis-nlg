@@ -7,6 +7,7 @@ from tqdm import tqdm
 from src.io import load_observed_tags, save_observed_tags, load_terminal_rules
 from src.ngrams import ngram2str
 from src.nltk_utils import Tokenizer, Lemmatizer, Stemmer
+from src.tests.parsing_test import replacements
 
 '''
 NP* (IN, TO, DT, N, JJ, PRP, PRPS):
@@ -916,7 +917,8 @@ def parse_phrases(tt_ngrams, n) -> Tuple[List, List[List[Tuple]]]:
     terminal_rules = load_terminal_rules()
 
     for tt_gram in tqdm(tt_ngrams, desc='parsing phrases from %d-grams' % n):
-        tags = tuple([tag for _, tag in tt_gram])
+        # TODO: replacements
+        tags = tuple([replacements.get(tag) or tag for _, tag in tt_gram])
 
         phrase = tt_gram
 

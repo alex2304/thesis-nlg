@@ -2,7 +2,7 @@ from itertools import product
 from operator import itemgetter
 from typing import List, Tuple
 
-from nltk import pos_tag, pprint
+from nltk import pos_tag, pprint, defaultdict
 
 # noinspection PyUnresolvedReferences
 from src.vocabulary import get_vocabulary, Vocabulary, WordInfo
@@ -37,6 +37,29 @@ class TextGenerator:
     def combine_elements(*args) -> List[str]:
         return list(product(*args, repeat=1))
 
+    def gen_sents_candidates(self, phrases):
+        s_patterns = ['ADJP',
+                      'ADVP NP VP',
+                      'ADVP VP',
+                      'CC NP VP',
+                      'NP',
+                      'NP ADJP',
+                      'NP ADVP VP',
+                      'NP NP',
+                      'NP VP',
+                      'PP COMMA NP VP',
+                      'PP NP VP',
+                      'VP']
+
+        sents = set()
+
+        for p in s_patterns:
+            p_types = p.split(' ')
+
+            sents.update(self.combine_elements(*[phrases.get(p_type, []) for p_type in p_types]))
+
+        return sents
+
     def generate(self, keywords: List[str], limit=5):
         tokens = self.tokenizer.tokenize(' '.join(keywords))
         ttokens = pos_tag(tokens)
@@ -54,36 +77,39 @@ class TextGenerator:
         pprint(kws_phrases)
 
         # TODO: create more different nps and vps
-        nps, vps = set(), set()
+        phrases = defaultdict(set)
 
         for tt, token_phrases in zip(ttokens, kws_phrases):
             token, tag = tt
 
-            if tag.startswith('N') or tag in ['JJ', 'PRP', 'PRP$', 'IN', 'TO', 'DT']:
-                np_phrases = token_phrases.get('NP', [])
+            for p_type in token_phrases:
+                phrases[p_type].update(token_phrases[p_type])
 
-                if np_phrases:
-                    nps.update(np_phrases)
-
-                    advps, pps = kws_with_tag(ttokens, 'ADVP'), kws_with_tag(ttokens, 'PP')
-
-                    for vb_tt in kws_with_tag(ttokens, 'V'):
-                        vps.update([(vb_tt,) + p for p in np_phrases])
-
-                        if advps:
-                            vps.update([(vb_tt,) + p + (advp_tt,) for p in np_phrases for advp_tt in advps])
-
-                        if pps:
-                            vps.update([(vb_tt,) + p + (pp_tt,) for p in np_phrases for pp_tt in pps])
-
-            if tag.startswith('V') or tag.startswith('N') or tag in ['JJ', 'PRP', 'PRP$', 'IN', 'TO', 'DT', 'RB']:
-                vp_phrases = token_phrases.get('VP', [])
-
-                if vp_phrases:
-                    vps.update(token_phrases.get('VP', []))
-
-                    for to_tt in kws_with_tag(ttokens, 'TO'):
-                        vps.update([(to_tt,) + p for p in vp_phrases])
+            # if tag.startswith('N') or tag in ['JJ', 'PRP', 'PRP$', 'IN', 'TO', 'DT']:
+            #     np_phrases = token_phrases.get('NP', [])
+            #
+            #     if np_phrases:
+            #         nps.update(np_phrases)
+            #
+            #         advps, pps = kws_with_tag(ttokens, 'ADVP'), kws_with_tag(ttokens, 'PP')
+            #
+            #         for vb_tt in kws_with_tag(ttokens, 'V'):
+            #             vps.update([(vb_tt,) + p for p in np_phrases])
+            #
+            #             if advps:
+            #                 vps.update([(vb_tt,) + p + (advp_tt,) for p in np_phrases for advp_tt in advps])
+            #
+            #             if pps:
+            #                 vps.update([(vb_tt,) + p + (pp_tt,) for p in np_phrases for pp_tt in pps])
+            #
+            # if tag.startswith('V') or tag.startswith('N') or tag in ['JJ', 'PRP', 'PRP$', 'IN', 'TO', 'DT', 'RB']:
+            #     vp_phrases = token_phrases.get('VP', [])
+            #
+            #     if vp_phrases:
+            #         vps.update(token_phrases.get('VP', []))
+            #
+            #         for to_tt in kws_with_tag(ttokens, 'TO'):
+            #             vps.update([(to_tt,) + p for p in vp_phrases])
 
             # TODO: add PP phrases
             # if tag.startswith('N') or tag in ['JJ', 'PRP', 'PRP$', 'IN', 'TO', 'DT']:
@@ -94,7 +120,9 @@ class TextGenerator:
             #
             #     for
 
-        sents_candidates = self.combine_elements(nps, vps)
+        # sents_candidates = self.combine_elements(nps, vps)
+
+        sents_candidates = self.gen_sents_candidates(phrases)
 
         print('%d sentences candidates\n' % len(sents_candidates))
 
@@ -112,12 +140,17 @@ class TextGenerator:
             # NP = (('a', 'DT'), ('rush', 'NN'), ('at', 'IN'), ('alice', 'NN'))
             # VP = (('left', 'VBD'), ('the', 'DT'), ('court', 'NN'))
             # TODO: different types of sentence
-            np, vp = s
-            sent_ttokens = np + vp
+            # np, vp = s
+            # sent_ttokens = np + vp
+
+            sent_ttokens = []
+
+            for phrase in s:
+                sent_ttokens.extend(phrase)
 
             # skip sentence if not all keywords are presented
-            if not set(sent_ttokens).issuperset(kws):
-                continue
+            # if not set(sent_ttokens).issuperset(kws):
+            #     continue
 
             language_model, morpheme_model = self.voc.sent_model(*sent_ttokens)
             kw_prod_model = self.voc.kw_log_prob(sent_ttokens, kws)

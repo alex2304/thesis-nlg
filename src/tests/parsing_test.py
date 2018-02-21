@@ -11,6 +11,7 @@ from tqdm import tqdm
 
 from src.io import load_corpora
 from src.ngrams import ngram2str
+from src.tests.settings import target_labels, prods_file_path, accepted_tags, tag_to_symbol, tags_seq_to_symbols
 
 
 def build_parser():
@@ -24,84 +25,8 @@ def build_parser():
 
 parser = build_parser()
 
-target_labels = ('NP', 'VP', 'PP', 'ADJP', 'ADVP')
-
-not_terminals = ['S', 'NP', 'VP', 'PP', 'ADJP', 'ADVP']
-
-terminals = ['CC',
-             'CD',
-             'DT',
-             'EX',
-             'FW',
-             'IN',
-             'JJ',
-             'JJR',
-             'JJS',
-             'LS',
-             'MD',
-             'NN',
-             'NNS',
-             'NNP',
-             'NNPS',
-             'PDT',
-             'POS',
-             'PRP',
-             'PRP$',
-             'RB',
-             'RBR',
-             'RBS',
-             'RP',
-             'SYM',
-             'TO',
-             'UH',
-             'VB',
-             'VBD',
-             'VBG',
-             'VBN',
-             'VBP',
-             'VBZ',
-             'WDT',
-             'WP',
-             'WP$',
-             'WRB'] + [',',
-                       ':',
-                       ';',
-                       '.',
-                       '?',
-                       '!',
-                       '-',
-                       '—']
-
-accepted_tags = terminals + list(not_terminals)
-
-replacements = {
-    'PRP$': 'PRPS',
-    'WP$': 'WPS',
-    ',': 'COMMA',
-    '-': 'DASH',
-    '—': 'DASH',
-    '?': 'QUESTION',
-    '!': 'EXCLAM',
-    '.': 'DOT',
-    ':': 'COLON',
-    ';': 'SEMICOLON'
-}
-
-prods_file_path = os.path.join(os.path.dirname(__file__), 'productions')
-
 
 def empty_prods():
-    # {
-    #     'NP': {
-    #         'NN NN': 1,
-    #         'NN': 2
-    #     },
-    #     'VP': {
-    #         'VBS': 10,
-    #         'VP VBS': 5
-    #     },
-    #     # ...
-    # }
     return {
         label: defaultdict(int)
         for label in target_labels
@@ -123,21 +48,9 @@ def get_tagged_sents(text):
     return tagged_sentences
 
 
-def validate_tags(sequence: Union[tuple, list]) -> tuple:
-    validated = []
-
-    for tag in sequence:
-        if tag not in accepted_tags:
-            return tuple()
-
-        validated.append(replacements.get(tag) or tag)
-
-    return tuple(validated)
-
-
-def load_prods():
-    if os.path.exists(prods_file_path):
-        with open(prods_file_path, mode='rb') as f:
+def load_prods(file_path):
+    if os.path.exists(file_path):
+        with open(file_path, mode='rb') as f:
             try:
                 productions = pickle.load(f)
 
@@ -153,15 +66,15 @@ def load_prods():
     return productions
 
 
-def save_prods(productions):
-    with open(prods_file_path, mode='wb') as f:
+def save_prods(productions, file_path):
+    with open(file_path, mode='wb') as f:
         pickle.dump(productions, f)
 
 
 def extract_productions(text, max_deep=None):
     tagged_sents = get_tagged_sents(text)
 
-    productions = load_prods()
+    productions = load_prods(prods_file_path)
 
     # build sentences trees
     trees_iters = list(parser.tagged_parse_sents(tagged_sents))
@@ -175,23 +88,25 @@ def extract_productions(text, max_deep=None):
                     lhs, rhs = production.lhs(), production.rhs()
 
                     label = lhs.symbol()
-                    tags = validate_tags([n.symbol() for n in rhs])
+                    tags_seq = [n.symbol() for n in rhs]
 
-                    if label in target_labels and tags:
-                        tags_str = ngram2str(tags, sep=' ')
+                    symbols = tags_seq_to_symbols(tags_seq)
 
-                        productions[label][tags_str] += 1
+                    if label in target_labels and symbols:
+                        symbols_str = ngram2str(symbols, sep=' ')
+
+                        productions[label][symbols_str] += 1
 
         except StopIteration:
             pass
 
-    save_prods(productions)
+    save_prods(productions, prods_file_path)
 
     return productions
 
 
 def display_prods(label=None):
-    prods = load_prods()
+    prods = load_prods(prods_file_path)
 
     if label:
         pprint(prods.get(label, {}))
@@ -211,7 +126,7 @@ def demo():
         print(prods)
 
 
-def exctract_productions_run():
+def extract_productions_run():
     corpora = load_corpora(test=False)
 
     sents_per_time = 15
@@ -222,6 +137,7 @@ def exctract_productions_run():
 
         try:
             extract_productions(corpus)
+
         except:
             traceback.print_exc()
 
@@ -229,6 +145,7 @@ def exctract_productions_run():
 
 
 if __name__ == '__main__':
+    pass
     # demo()
 
-    exctract_productions_run()
+    # exctract_productions_run()

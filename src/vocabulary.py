@@ -111,7 +111,7 @@ class Vocabulary:
             print('phrases loaded from file')
             return
 
-        for i in range(2, 5):
+        for i in range(2, 5 + 1):
             tt_ngrams = list(n_grams(ordered_ttokens, i, tokens_indexes, pad_left=False))
 
             types, phrases = parse_phrases(tt_ngrams, i)
@@ -279,6 +279,6 @@ def get_vocabulary(corpora=None, reload_corpora=False, reload_phrases=False, n=1
 
 
 if __name__ == '__main__':
-    corpora = load_corpora()
+    corpora = load_corpora(test=False)
 
     vocabulary = get_vocabulary(corpora, reload_corpora=True, n=3, reload_phrases=True, test=False)

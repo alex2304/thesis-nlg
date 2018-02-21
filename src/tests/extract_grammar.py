@@ -1,11 +1,10 @@
 import json
-import os
 from collections import defaultdict
 
 from src.ngrams import str2ngram
-from src.tests.parsing_test import load_prods, target_labels, terminals, replacements, not_terminals
-
-grammar_file_path = os.path.join(os.path.dirname(__file__), 'grammar.txt')
+from src.tests.parsing_test import load_prods
+from src.tests.settings import prods_file_path, target_labels, grammar_file_path, terminals, tag_to_symbol, \
+    symbol_to_tag
 
 
 def choose_best_productions(grammar, min_freq, min_count, max_count, labels):
@@ -34,13 +33,17 @@ def choose_best_productions(grammar, min_freq, min_count, max_count, labels):
         print(label, len(best_label_prods))
 
         for rule, freq in best_label_prods:
-            rule_tags_set = set(str2ngram(rule, sep=' '))
+            rule_tags = [symbol_to_tag(s) for s in str2ngram(rule, sep=' ')]
 
-            if rule_tags_set.issubset(terminals):
+            if set(rule_tags).issubset(terminals):
                 best_productions[label]['terminals'].append((rule, freq))
 
-            else:
+            else:  # rule_tags_set.issubset(not_terminals):
                 best_productions[label]['not_terminals'].append((rule, freq))
+
+            # else:
+            #     # TODO:
+            #     best_productions[label]['terminals'].append((rule, freq))
 
     return best_productions
 
@@ -58,7 +61,7 @@ def get_prods_str(label, rules):
 
 
 def get_terminals_str():
-    return '\n'.join(['%s -> "%s"' % (replacements.get(t) or t, t)
+    return '\n'.join(['%s -> "%s"' % (tag_to_symbol(t), t)
                       for t in terminals])
 
 
@@ -93,14 +96,14 @@ def save_terminals(grammar):
 
 
 def main():
-    grammar = load_prods()
+    grammar = load_prods(prods_file_path)
 
     best_productions = choose_best_productions(grammar,
                                                min_freq=2,
                                                min_count=30, max_count=1500,
                                                labels=target_labels)
 
-    # save_text_grammar(best_productions)
+    save_text_grammar(best_productions)
 
     save_terminals(best_productions)
 
