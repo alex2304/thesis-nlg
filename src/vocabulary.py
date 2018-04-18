@@ -111,7 +111,7 @@ class Vocabulary:
             print('phrases loaded from file')
             return
 
-        for i in range(2, 5 + 1):
+        for i in range(1, 5 + 1):
             tt_ngrams = list(n_grams(ordered_ttokens, i, tokens_indexes, pad_left=False))
 
             types, phrases = parse_phrases(tt_ngrams, i)
@@ -212,6 +212,7 @@ class Vocabulary:
             ttokens = (('alice', 'NN'), ('left', 'VBD'), ('the', 'DT'), ('court', 'NN'))
         :return: (n-gram language model, n-gram morpheme model)
         """
+        print(*ttokens)
         tokens, tags = zip(*ttokens)
 
         # TODO: smoothing (penalize short sentences)

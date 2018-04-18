@@ -3,15 +3,15 @@ import pickle
 import traceback
 from math import ceil
 from os.path import join, dirname
-from typing import Union
 
 from nltk import pos_tag_sents, word_tokenize, sent_tokenize, defaultdict, pprint
 from nltk.parse.stanford import StanfordParser
 from tqdm import tqdm
 
+from src.grammar.utils import tags_seq_to_symbols
 from src.io import load_corpora
 from src.ngrams import ngram2str
-from src.tests.settings import target_labels, prods_file_path, accepted_tags, tag_to_symbol, tags_seq_to_symbols
+from src.grammar.settings import target_labels, prods_file_path
 
 
 def build_parser():

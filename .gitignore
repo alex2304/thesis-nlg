@@ -3,4 +3,4 @@
 .ipynb_checkpoints
 cache/*
 backup/*
-src/tests/standford_parser/*
+src/grammar/standford_parser/*

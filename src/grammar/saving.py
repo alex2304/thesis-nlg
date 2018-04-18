@@ -1,10 +1,10 @@
 import json
 from collections import defaultdict
 
+from src.grammar.utils import symbol_to_tag, tag_to_symbol
 from src.ngrams import str2ngram
-from src.tests.parsing_test import load_prods
-from src.tests.settings import prods_file_path, target_labels, grammar_file_path, terminals, tag_to_symbol, \
-    symbol_to_tag
+from src.grammar.extraction import load_prods
+from src.grammar.settings import prods_file_path, target_labels, grammar_file_path, terminals, grammar_out_file_path
 
 
 def choose_best_productions(grammar, min_freq, min_count, max_count, labels):
@@ -92,14 +92,14 @@ def save_terminals(grammar):
 
             terminal_rules[tags][label] = freq
 
-    json.dump(terminal_rules, open('terminal_rules.json', mode='w', encoding='utf-8'))
+    json.dump(terminal_rules, open(grammar_out_file_path, mode='w', encoding='utf-8'))
 
 
 def main():
     grammar = load_prods(prods_file_path)
 
     best_productions = choose_best_productions(grammar,
-                                               min_freq=2,
+                                               min_freq=1,
                                                min_count=30, max_count=1500,
                                                labels=target_labels)
 

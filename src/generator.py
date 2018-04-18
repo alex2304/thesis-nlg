@@ -1,11 +1,14 @@
+import random
 from itertools import product
 from operator import itemgetter
 from typing import List, Tuple
 
 from nltk import pos_tag, pprint, defaultdict
 
+from src.io import load_terminal_rules_sents
+from src.ngrams import str2ngram
 # noinspection PyUnresolvedReferences
-from src.vocabulary import get_vocabulary, Vocabulary, WordInfo
+from src.vocabulary import get_vocabulary, Vocabulary
 
 
 def kws_with_tag(ttokens, tag) -> List[Tuple]:
@@ -37,7 +40,15 @@ class TextGenerator:
     def combine_elements(*args) -> List[str]:
         return list(product(*args, repeat=1))
 
-    def gen_sents_candidates(self, phrases):
+    def gen_sents_candidates(self, kws_ttokens, kws_phrases):
+        marks = {'COMMA': [((",", ','),)],
+                 'COLON': [((":", ':'),)],
+                 'SEMICOLON': [((";", ';'),)],
+                 # 'DOT': [((".", '.'),)],
+                 'QUESTION': [(("?", '?'),)],
+                 'EXCLAM': [(("!", '!'),)],
+                 'DASH': [(("-", '-'),)]}
+
         s_patterns = ['ADJP',
                       'ADVP NP VP',
                       'ADVP VP',
@@ -52,31 +63,88 @@ class TextGenerator:
                       'VP']
 
         sents = set()
+        # TODO: restrict for not-unique phrases
 
-        for p in s_patterns:
-            p_types = p.split(' ')
+        sents_rules = load_terminal_rules_sents()
 
-            sents.update(self.combine_elements(*[phrases.get(p_type, []) for p_type in p_types]))
+        phrases = defaultdict(dict)
+
+        for tt, token_phrases in zip(kws_ttokens, kws_phrases):
+            token, tag = tt
+
+            for p_type in token_phrases:
+                phrases[p_type][token] = token_phrases[p_type]
+
+        for sents_rule in sents_rules:
+            sent_symbols = str2ngram(sents_rule)
+
+            sent = []
+            used_kws = set()
+
+            # TODO: different sent candidates with same rule
+            for p_type in sent_symbols:
+                if p_type in marks:
+                    p_type_phrases = marks.get(p_type, [])
+
+                else:
+                    kws_p_type_phrases = phrases.get(p_type, {})
+
+                    if kws_p_type_phrases:
+                        possible_kws = set(kws_p_type_phrases.keys()).difference(used_kws)
+
+                        if not possible_kws:
+                            p_type_phrases = []
+
+                        else:
+                            kw = random.choice(list(possible_kws))
+
+                            p_type_phrases = kws_p_type_phrases[kw]
+
+                            used_kws.add(kw)
+
+                    else:
+                        p_type_phrases = []
+
+                if not p_type_phrases:
+                    break
+
+                sent.append(random.choice(list(p_type_phrases)))
+                # for phr_cand in list(p_type_phrases):
+                #     if phr_cand not in sent:
+                #         sent.append(phr_cand)
+                #         break
+                # else:
+                #     break
+
+            else:
+                sents.add(tuple(sent))
+
+            # sent_raw = [phrases.get(p_type, []) or marks.get(p_type, []) for p_type in sent_symbols]
+
+            # print(sent_raw)
+
+            # sents.update(self.combine_elements(*sent_raw))
 
         return sents
+        # for p in s_patterns:
+        #     p_types = p.split(' ')
+        #
+        #     sents.update(self.combine_elements(*[phrases.get(p_type, []) for p_type in p_types]))
+        #
+        # return sents
 
     def generate(self, keywords: List[str], limit=5):
         tokens = self.tokenizer.tokenize(' '.join(keywords))
         ttokens = pos_tag(tokens)
-        tags = [tt[1] for tt in ttokens]
 
         lemmas = [self.lemmatizer.lemmatize(token, pos=tag)
                   for token, tag in ttokens]
-
-        stems = [self.stemmer.stem(t)
-                 for t in tokens]
 
         kws_phrases = [self.voc.get_phrases_containing(l)
                        for l in lemmas]
 
         pprint(kws_phrases)
 
-        # TODO: create more different nps and vps
         phrases = defaultdict(set)
 
         for tt, token_phrases in zip(ttokens, kws_phrases):
@@ -111,7 +179,7 @@ class TextGenerator:
             #         for to_tt in kws_with_tag(ttokens, 'TO'):
             #             vps.update([(to_tt,) + p for p in vp_phrases])
 
-            # TODO: add PP phrases
+
             # if tag.startswith('N') or tag in ['JJ', 'PRP', 'PRP$', 'IN', 'TO', 'DT']:
             #     pp_phrases = token_phrases.get('PP', [])
 
@@ -122,9 +190,13 @@ class TextGenerator:
 
         # sents_candidates = self.combine_elements(nps, vps)
 
-        sents_candidates = self.gen_sents_candidates(phrases)
+        # sents_candidates = self.gen_sents_candidates(phrases)
+
+        sents_candidates = self.gen_sents_candidates(ttokens, kws_phrases)
 
         print('%d sentences candidates\n' % len(sents_candidates))
+
+        return list(sents_candidates)[:100]
 
         ranked_sents = self.rank_sents(sents_candidates, ttokens)
 
@@ -171,7 +243,7 @@ def pprint_sents(sents, show_details=False):
         if show_details:
             print(s)
         else:
-            sent_parts = s[0]
+            sent_parts = s  # TODO:
             s_text = ' '.join(tt[0] for p in sent_parts for tt in p).capitalize() + '.'
 
             print(s_text)

@@ -1,0 +1,7 @@
+1. Tokenize and Lemmatize given keywords
+2. For each keyword, find it's synset
+3. For each word, find phrases in which it appears; if no phrases:
+    - try to find phrases for hypernyms of the word
+    - try to use examples() from WordNet as phrases
+4. Compute similarity scores for keywords combinations (n*(n-1)/2 combinations). Sort words combinations by scores.
+5.
